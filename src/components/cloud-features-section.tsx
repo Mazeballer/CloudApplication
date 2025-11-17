@@ -34,7 +34,7 @@ export function CloudFeaturesSection() {
   ];
 
   return (
-    <section className="container mx-auto px-4 py-16 md:py-24">
+    <section className="container mx-auto px-18 py-16 md:py-24">
       <div className="text-center mb-12">
         <h2 className="text-3xl md:text-4xl font-bold mb-4 text-balance">
           Cloud powered intelligence
@@ -105,7 +105,7 @@ export function CloudFeaturesSection() {
 
         {/* Right: Platform Features Panel */}
         <div className="lg:sticky lg:top-24">
-          <Card className="bg-gradient-to-br from-primary/5 to-accent/5 border-2">
+          <Card className="bg-linear-to-br from-primary/5 to-accent/5 border-2">
             <CardHeader>
               <CardTitle className="text-2xl">Smart cloud platform</CardTitle>
               <CardDescription>
@@ -119,7 +119,7 @@ export function CloudFeaturesSection() {
                   key={index}
                   className="flex items-center gap-3 p-3 bg-background/60 rounded-lg"
                 >
-                  <Check className="h-5 w-5 text-primary flex-shrink-0" />
+                  <Check className="h-5 w-5 text-primary shrink-0" />
                   <div className="flex-1">
                     <Badge variant="secondary" className="mb-1">
                       {feature.name}

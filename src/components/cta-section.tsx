@@ -3,8 +3,8 @@ import { ArrowRight } from "lucide-react";
 
 export function CTASection() {
   return (
-    <section className="container mx-auto px-4 py-16 md:py-24">
-      <div className="bg-gradient-to-br from-primary/10 via-background to-accent/10 rounded-2xl p-8 md:p-12 lg:p-16 text-center border">
+    <section className="container mx-auto px-18 py-16 md:py-24">
+      <div className="bg-linear-to-br from-primary/10 via-background to-accent/10 rounded-2xl p-8 md:p-12 lg:p-16 text-center border">
         <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6 text-balance">
           Take the stress out of car servicing
         </h2>

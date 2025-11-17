@@ -1,31 +1,31 @@
-"use client"
+"use client";
 
-import { Button } from "@/components/ui/button"
-import { Car, LogOut, Menu, Bell, User } from 'lucide-react'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { logout, getUserEmail } from "@/lib/auth"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { Button } from "@/components/ui/button";
+import { Car, LogOut, Menu, Bell, User } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { logout, getUserEmail } from "@/lib/auth";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 export function DashboardNav() {
-  const router = useRouter()
-  const userEmail = getUserEmail()
+  const router = useRouter();
+  const userEmail = getUserEmail();
 
   const handleLogout = () => {
-    logout()
-    router.push("/")
-  }
+    logout();
+    router.push("/");
+  };
 
   const navLinks = [
     { label: "Dashboard", href: "/dashboard" },
     { label: "My Vehicles", href: "/dashboard/vehicles" },
     { label: "Service History", href: "/dashboard/history" },
     { label: "Book Service", href: "/dashboard/book" },
-  ]
+  ];
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto flex h-16 items-center justify-between px-4">
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
+      <div className="container mx-auto flex h-16 items-center justify-between px-18">
         {/* Logo */}
         <Link href="/dashboard" className="flex items-center gap-2">
           <Car className="h-6 w-6 text-primary" />
@@ -80,7 +80,11 @@ export function DashboardNav() {
                   {link.label}
                 </Link>
               ))}
-              <Button variant="ghost" className="w-full justify-start" onClick={handleLogout}>
+              <Button
+                variant="ghost"
+                className="w-full justify-start"
+                onClick={handleLogout}
+              >
                 <LogOut className="h-4 w-4 mr-2" />
                 Logout
               </Button>
@@ -89,5 +93,5 @@ export function DashboardNav() {
         </Sheet>
       </div>
     </header>
-  )
+  );
 }

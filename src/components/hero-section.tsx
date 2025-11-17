@@ -7,7 +7,7 @@ import Link from "next/link";
 
 export function HeroSection() {
   return (
-    <section className="container mx-auto px-4 py-16 md:py-24">
+    <section className="container mx-auto px-18 py-16 md:py-24">
       <div className="grid lg:grid-cols-2 gap-12 items-center">
         {/* Left Column */}
         <div className="space-y-6">
@@ -35,7 +35,7 @@ export function HeroSection() {
 
         {/* Right Column - Dashboard Mockup */}
         <div>
-          <Card className="shadow-xl">
+          <Card className="shadow-xl min-h-[600px]">
             <CardContent className="p-6">
               <Tabs defaultValue="overview" className="w-full">
                 <TabsList className="grid w-full grid-cols-3">

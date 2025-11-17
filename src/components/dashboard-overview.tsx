@@ -1,88 +1,98 @@
-"use client"
+"use client";
 
-import { Card } from "@/components/ui/card"
-import { Car, Wrench, AlertTriangle, CheckCircle } from 'lucide-react'
-import { useState, useEffect } from "react"
-import { getCurrentUser } from "@/lib/auth"
+import { Card } from "@/components/ui/card";
+import { Car, Wrench, AlertTriangle, CheckCircle } from "lucide-react";
+import { useState, useEffect } from "react";
+import { getCurrentUser } from "@/lib/auth";
+import { useVehicles } from "@/contexts/VehiclesContext";
 
 export function DashboardOverview() {
+  const { vehicles } = useVehicles();
+  const [mounted, setMounted] = useState(false); // ⭐ Add mounted state
+
   const [stats, setStats] = useState({
     totalVehicles: 0,
     servicesDue: 0,
     activeBookings: 0,
-    servicesCompleted: 0
-  })
+    servicesCompleted: 0,
+  });
 
   const loadStats = () => {
-    const user = getCurrentUser()
-    if (!user) return
+    const user = getCurrentUser();
+    if (!user) return;
 
-    console.log('[v0] Loading stats for user:', user.id)
-    const vehicles = JSON.parse(localStorage.getItem('autocare_vehicles') || '[]')
-    const bookings = JSON.parse(localStorage.getItem('autocare_bookings') || '[]')
-    const invoices = JSON.parse(localStorage.getItem('autocare_invoices') || '[]')
+    console.log("[v0] Loading stats for user:", user.id);
+    const bookings = JSON.parse(
+      localStorage.getItem("autocare_bookings") || "[]"
+    );
+    const invoices = JSON.parse(
+      localStorage.getItem("autocare_invoices") || "[]"
+    );
+    const userBookings = bookings.filter((b: any) => b.customerId === user.id);
+    const userInvoices = invoices.filter((i: any) => i.customerId === user.id);
 
-    const userVehicles = vehicles.filter((v: any) => v.userId === user.id)
-    const userBookings = bookings.filter((b: any) => b.customerId === user.id)
-    const userInvoices = invoices.filter((i: any) => i.customerId === user.id)
-
-    console.log('[v0] User vehicles:', userVehicles.length)
-    console.log('[v0] User bookings:', userBookings.length)
-    console.log('[v0] User invoices:', userInvoices.length)
-
-    // Count scheduled (not yet completed) bookings
     const activeBookings = userBookings.filter((b: any) => {
-      const hasInvoice = userInvoices.some((inv: any) => inv.bookingId === b.id)
-      return !hasInvoice
-    }).length
+      const hasInvoice = userInvoices.some(
+        (inv: any) => inv.bookingId === b.id
+      );
+      return !hasInvoice;
+    }).length;
 
     setStats({
-      totalVehicles: userVehicles.length,
+      totalVehicles: vehicles.length,
       servicesDue: activeBookings,
       activeBookings: activeBookings,
-      servicesCompleted: userInvoices.length
-    })
-  }
+      servicesCompleted: userInvoices.length,
+    });
+  };
 
   useEffect(() => {
-    loadStats()
+    setMounted(true); // ⭐ Set mounted to true after first render
+  }, []);
 
-    // Listen for storage changes
+  useEffect(() => {
+    if (!mounted) return; // ⭐ Don't load stats until mounted
+    loadStats();
+  }, [vehicles, mounted]);
+
+  useEffect(() => {
+    if (!mounted) return; // ⭐ Don't add listener until mounted
+
     const handleStorageChange = () => {
-      console.log('[v0] Storage event detected, reloading stats')
-      loadStats()
-    }
+      console.log("[v0] Storage event detected, reloading stats");
+      loadStats();
+    };
 
-    window.addEventListener('storage', handleStorageChange)
-    return () => window.removeEventListener('storage', handleStorageChange)
-  }, [])
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, [mounted]);
 
   const statItems = [
     {
       label: "Total Vehicles",
       value: stats.totalVehicles.toString(),
       icon: Car,
-      color: "text-primary"
+      color: "text-primary",
     },
     {
       label: "Services Due",
       value: stats.servicesDue.toString(),
       icon: Wrench,
-      color: "text-amber-500"
+      color: "text-amber-500",
     },
     {
       label: "Active Bookings",
       value: stats.activeBookings.toString(),
       icon: AlertTriangle,
-      color: "text-red-500"
+      color: "text-red-500",
     },
     {
       label: "Services Completed",
       value: stats.servicesCompleted.toString(),
       icon: CheckCircle,
-      color: "text-green-500"
-    }
-  ]
+      color: "text-green-500",
+    },
+  ];
 
   return (
     <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -96,5 +106,5 @@ export function DashboardOverview() {
         </Card>
       ))}
     </div>
-  )
+  );
 }

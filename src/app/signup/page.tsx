@@ -1,64 +1,66 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Eye, EyeOff, AlertCircle, Car } from 'lucide-react'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { register } from "@/lib/auth"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Eye, EyeOff, AlertCircle, Car } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { register } from "@/lib/auth";
 
 export default function SignupPage() {
-  const router = useRouter()
+  const router = useRouter();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     phone: "",
     password: "",
-    confirmPassword: ""
-  })
-  const [showPassword, setShowPassword] = useState(false)
-  const [error, setError] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
+    confirmPassword: "",
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-    
+    e.preventDefault();
+    setError("");
+
     if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match")
-      return
+      setError("Passwords do not match");
+      return;
     }
-    
+
     if (formData.password.length < 6) {
-      setError("Password must be at least 6 characters")
-      return
+      setError("Password must be at least 6 characters");
+      return;
     }
-    
-    setIsLoading(true)
-    
-    const result = register({
-      name: formData.name,
-      email: formData.email,
-      phone: formData.phone,
-      type: 'driver'
-    }, formData.password)
-    
+
+    setIsLoading(true);
+
+    const result = await register(
+      {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+      },
+      formData.password
+    );
+
     if (result.success) {
-      router.push("/login?registered=true")
+      router.push("/login?registered=true");
     } else {
-      setError(result.error || "Registration failed")
-      setIsLoading(false)
+      setError(result.error || "Registration failed");
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen flex">
       {/* Left Side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-teal-600 to-teal-800 p-12 items-center justify-center">
+      <div className="hidden lg:flex lg:w-1/2 bg-linear-to-br from-teal-600 to-teal-800 p-12 items-center justify-center">
         <div className="max-w-md text-white">
           <div className="flex items-center gap-3 mb-8">
             <div className="bg-white p-3 rounded-xl">
@@ -66,11 +68,10 @@ export default function SignupPage() {
             </div>
             <span className="text-3xl font-bold">AutoCare+</span>
           </div>
-          <h1 className="text-4xl font-bold mb-4">
-            Join AutoCare+ Today
-          </h1>
+          <h1 className="text-4xl font-bold mb-4">Join AutoCare+ Today</h1>
           <p className="text-teal-100 text-lg">
-            Keep your vehicle in perfect condition with AI-powered maintenance tracking and smart service reminders.
+            Keep your vehicle in perfect condition with AI-powered maintenance
+            tracking and smart service reminders.
           </p>
         </div>
       </div>
@@ -95,7 +96,9 @@ export default function SignupPage() {
                   type="text"
                   placeholder="John Doe"
                   value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
                   required
                   disabled={isLoading}
                 />
@@ -109,7 +112,9 @@ export default function SignupPage() {
                   type="email"
                   placeholder="john@example.com"
                   value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
                   required
                   disabled={isLoading}
                 />
@@ -123,7 +128,9 @@ export default function SignupPage() {
                   type="tel"
                   placeholder="+1 (555) 000-0000"
                   value={formData.phone}
-                  onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                  onChange={(e) =>
+                    setFormData({ ...formData, phone: e.target.value })
+                  }
                   required
                   disabled={isLoading}
                 />
@@ -138,7 +145,9 @@ export default function SignupPage() {
                     type={showPassword ? "text" : "password"}
                     placeholder="Create a strong password"
                     value={formData.password}
-                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                    onChange={(e) =>
+                      setFormData({ ...formData, password: e.target.value })
+                    }
                     required
                     disabled={isLoading}
                   />
@@ -147,7 +156,11 @@ export default function SignupPage() {
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
                   </button>
                 </div>
               </div>
@@ -160,7 +173,12 @@ export default function SignupPage() {
                   type={showPassword ? "text" : "password"}
                   placeholder="Confirm your password"
                   value={formData.confirmPassword}
-                  onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      confirmPassword: e.target.value,
+                    })
+                  }
                   required
                   disabled={isLoading}
                 />
@@ -182,7 +200,10 @@ export default function SignupPage() {
 
             <div className="mt-6 text-center text-sm text-muted-foreground">
               Already have an account?{" "}
-              <Link href="/login" className="text-primary hover:underline font-medium">
+              <Link
+                href="/login"
+                className="text-primary hover:underline font-medium"
+              >
                 Sign in
               </Link>
             </div>
@@ -190,5 +211,5 @@ export default function SignupPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

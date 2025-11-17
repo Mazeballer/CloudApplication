@@ -1,4 +1,4 @@
-import { Car, Linkedin, Github, Instagram } from 'lucide-react'
+import { Car, Linkedin, Github, Instagram } from "lucide-react";
 
 export function Footer() {
   const footerLinks = {
@@ -26,11 +26,11 @@ export function Footer() {
       { label: "Community", href: "#" },
       { label: "Privacy Policy", href: "#" },
     ],
-  }
+  };
 
   return (
     <footer className="border-t bg-muted/30">
-      <div className="container mx-auto px-4 py-12 md:py-16">
+      <div className="container mx-auto px-18 py-12 md:py-16">
         <div className="grid md:grid-cols-2 lg:grid-cols-6 gap-8 mb-8">
           {/* Logo and Description */}
           <div className="lg:col-span-2">
@@ -39,18 +39,28 @@ export function Footer() {
               <span className="text-xl font-bold">AutoCare+</span>
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-              Cloud-powered vehicle service and maintenance management for drivers and workshops. Built on AWS infrastructure.
+              Cloud-powered vehicle service and maintenance management for
+              drivers and workshops. Built on AWS infrastructure.
             </p>
             <div className="flex gap-4">
-              <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
+              <a
+                href="#"
+                className="text-muted-foreground hover:text-primary transition-colors"
+              >
                 <Linkedin className="h-5 w-5" />
                 <span className="sr-only">LinkedIn</span>
               </a>
-              <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
+              <a
+                href="#"
+                className="text-muted-foreground hover:text-primary transition-colors"
+              >
                 <Github className="h-5 w-5" />
                 <span className="sr-only">GitHub</span>
               </a>
-              <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
+              <a
+                href="#"
+                className="text-muted-foreground hover:text-primary transition-colors"
+              >
                 <Instagram className="h-5 w-5" />
                 <span className="sr-only">Instagram</span>
               </a>
@@ -125,10 +135,11 @@ export function Footer() {
 
         <div className="pt-8 border-t text-center">
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} AutoCare+. All rights reserved. Built with Next.js, ASP.NET, AWS RDS & Neon DB.
+            © {new Date().getFullYear()} AutoCare+. All rights reserved. Built
+            with Next.js, ASP.NET, AWS RDS & Neon DB.
           </p>
         </div>
       </div>
     </footer>
-  )
+  );
 }

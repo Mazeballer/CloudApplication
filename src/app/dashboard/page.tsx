@@ -1,22 +1,38 @@
-import { ProtectedRoute } from "@/components/protected-route"
-import { DashboardNav } from "@/components/dashboard-nav"
-import { DashboardOverview } from "@/components/dashboard-overview"
-import { VehiclesList } from "@/components/vehicles-list"
-import { UpcomingMaintenance } from "@/components/upcoming-maintenance"
-import { DemoDataInitializer } from "@/components/demo-data-initializer"
+"use client";
+
+import { useAuth } from "@/lib/auth";
+import { ProtectedRoute } from "@/components/protected-route";
+import { DashboardNav } from "@/components/dashboard-nav";
+import { DashboardOverview } from "@/components/dashboard-overview";
+import { VehiclesList } from "@/components/vehicles-list";
+import { UpcomingMaintenance } from "@/components/upcoming-maintenance";
+// import { DemoDataInitializer } from "@/components/demo-data-initializer";
 
 export default function DashboardPage() {
+  const { isAuth, user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-muted/30 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
   return (
     <ProtectedRoute>
-      <DemoDataInitializer />
+      {/* <DemoDataInitializer /> */}
       <div className="min-h-screen bg-muted/30">
         <DashboardNav />
-        
-        <main className="container mx-auto px-4 py-8">
+
+        <main className="container mx-auto px-18 py-8">
           <div className="mb-8">
             <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
             <p className="text-muted-foreground">
-              Welcome back! Here's an overview of your vehicles and maintenance schedule.
+              Welcome back! Here's an overview of your vehicles and maintenance
+              schedule.
             </p>
           </div>
 
@@ -38,5 +54,5 @@ export default function DashboardPage() {
         </main>
       </div>
     </ProtectedRoute>
-  )
+  );
 }

@@ -1,6 +1,6 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { MapPin, Star, Clock, Wrench } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { MapPin, Star, Clock, Wrench } from "lucide-react";
 
 export function WorkshopMapSection() {
   const workshops = [
@@ -28,28 +28,33 @@ export function WorkshopMapSection() {
       status: "Open now",
       distance: "3.8 km away",
     },
-  ]
+  ];
 
   return (
-    <section className="container mx-auto px-4 py-16 md:py-24">
+    <section className="container mx-auto px-18 py-16 md:py-24">
       <div className="text-center mb-12">
         <h2 className="text-3xl md:text-4xl font-bold mb-4 text-balance">
           Help drivers discover your workshop
         </h2>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-          Get found by customers in your area with our integrated mapping and rating system
+          Get found by customers in your area with our integrated mapping and
+          rating system
         </p>
       </div>
 
       <Card className="shadow-xl overflow-hidden">
         <div className="grid lg:grid-cols-2">
           {/* Map Placeholder */}
-          <div className="relative h-[400px] lg:h-auto bg-gradient-to-br from-primary/10 via-muted to-accent/10">
+          <div className="relative h-[400px] lg:h-auto bg-linear-to-br from-primary/10 via-muted to-accent/10">
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="text-center p-8">
                 <MapPin className="h-16 w-16 text-primary mx-auto mb-4" />
-                <p className="text-lg font-semibold mb-2">Interactive Map Integration</p>
-                <p className="text-sm text-muted-foreground">Mapbox or Google Maps integration</p>
+                <p className="text-lg font-semibold mb-2">
+                  Interactive Map Integration
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Mapbox or Google Maps integration
+                </p>
                 <div className="flex gap-3 mt-6 justify-center">
                   <div className="h-8 w-8 rounded-full bg-primary/20 animate-pulse" />
                   <div className="h-8 w-8 rounded-full bg-accent/20 animate-pulse delay-75" />
@@ -72,7 +77,9 @@ export function WorkshopMapSection() {
                     <div className="flex items-center gap-1 text-sm">
                       <Star className="h-4 w-4 fill-accent text-accent" />
                       <span className="font-medium">{workshop.rating}</span>
-                      <span className="text-muted-foreground">({workshop.reviews})</span>
+                      <span className="text-muted-foreground">
+                        ({workshop.reviews})
+                      </span>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 mb-3">
@@ -94,12 +101,12 @@ export function WorkshopMapSection() {
             ))}
             <div className="pt-4 mt-2 border-t">
               <p className="text-sm text-center text-muted-foreground">
-                Real-time availability 
+                Real-time availability
               </p>
             </div>
           </CardContent>
         </div>
       </Card>
     </section>
-  )
+  );
 }

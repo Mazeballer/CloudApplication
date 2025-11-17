@@ -82,7 +82,7 @@ export function UpcomingMaintenance() {
           {maintenanceItems.map((item, index) => (
             <Card key={index} className="p-4">
               <div className="flex items-start gap-3">
-                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                   <item.icon className="h-5 w-5 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -94,7 +94,7 @@ export function UpcomingMaintenance() {
                         item.priority === "high" ? "secondary" : 
                         "outline"
                       }
-                      className="flex-shrink-0"
+                      className="shrink-0"
                     >
                       {item.priority}
                     </Badge>

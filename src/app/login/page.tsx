@@ -6,7 +6,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
       {/* Left Side - Branding */}
-      <div className="flex-1 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8 lg:p-12 flex flex-col justify-between text-white">
+      <div className="flex-1 bg-linear-to-br from-slate-900 via-slate-800 to-slate-900 p-8 lg:p-12 flex flex-col justify-between text-white">
         <Link href="/" className="flex items-center gap-2">
           <Car className="h-8 w-8 text-primary" />
           <span className="text-2xl font-bold">AutoCare+</span>

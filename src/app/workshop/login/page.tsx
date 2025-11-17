@@ -1,12 +1,12 @@
-import { LoginForm } from "@/components/login-form"
-import { Wrench } from 'lucide-react'
-import Link from 'next/link'
+import { LoginForm } from "@/components/login-form";
+import { Wrench } from "lucide-react";
+import Link from "next/link";
 
 export default function WorkshopLoginPage() {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
       {/* Left Side - Branding */}
-      <div className="flex-1 bg-gradient-to-br from-amber-900 via-amber-800 to-orange-900 p-8 lg:p-12 flex flex-col justify-between text-white">
+      <div className="flex-1 bg-linear-to-br from-amber-900 via-amber-800 to-orange-900 p-8 lg:p-12 flex flex-col justify-between text-white">
         <Link href="/" className="flex items-center gap-2">
           <Wrench className="h-8 w-8 text-amber-400" />
           <span className="text-2xl font-bold">AutoCare+ Workshop</span>
@@ -17,7 +17,8 @@ export default function WorkshopLoginPage() {
             Streamline your workshop operations
           </h1>
           <p className="text-lg text-amber-100 max-w-md text-pretty leading-relaxed">
-            Manage appointments, track customer vehicles, and deliver exceptional service with our workshop management platform.
+            Manage appointments, track customer vehicles, and deliver
+            exceptional service with our workshop management platform.
           </p>
         </div>
 
@@ -41,5 +42,5 @@ export default function WorkshopLoginPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

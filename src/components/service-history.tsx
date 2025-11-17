@@ -1,66 +1,83 @@
-"use client"
+"use client";
 
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Calendar, Wrench, DollarSign, FileText, Download, Receipt } from 'lucide-react'
-import { useState, useEffect } from "react"
-import { getCurrentUser } from "@/lib/auth"
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Calendar,
+  Wrench,
+  DollarSign,
+  FileText,
+  Download,
+  Receipt,
+} from "lucide-react";
+import { useState, useEffect } from "react";
+import { getCurrentUser } from "@/lib/auth";
 
 export function ServiceHistory() {
-  const [bookings, setBookings] = useState<any[]>([])
-  const [invoices, setInvoices] = useState<any[]>([])
-  const [combinedRecords, setCombinedRecords] = useState<any[]>([])
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [combinedRecords, setCombinedRecords] = useState<any[]>([]);
 
   const loadHistory = () => {
-    const user = getCurrentUser()
-    if (!user) return
+    const user = getCurrentUser();
+    if (!user) return;
 
-    console.log('[v0] Loading service history for user:', user.id)
-    const allBookings = JSON.parse(localStorage.getItem('autocare_bookings') || '[]')
-    const allInvoices = JSON.parse(localStorage.getItem('autocare_invoices') || '[]')
+    console.log("[v0] Loading service history for user:", user.id);
+    const allBookings = JSON.parse(
+      localStorage.getItem("autocare_bookings") || "[]"
+    );
+    const allInvoices = JSON.parse(
+      localStorage.getItem("autocare_invoices") || "[]"
+    );
 
     // Filter bookings by current user
-    const userBookings = allBookings.filter((b: any) => b.customerId === user.id)
-    const userInvoices = allInvoices.filter((i: any) => i.customerId === user.id)
+    const userBookings = allBookings.filter(
+      (b: any) => b.customerId === user.id
+    );
+    const userInvoices = allInvoices.filter(
+      (i: any) => i.customerId === user.id
+    );
 
-    console.log('[v0] User bookings:', userBookings.length)
-    console.log('[v0] User invoices:', userInvoices.length)
+    console.log("[v0] User bookings:", userBookings.length);
+    console.log("[v0] User invoices:", userInvoices.length);
 
-    setBookings(userBookings)
-    setInvoices(userInvoices)
+    setBookings(userBookings);
+    setInvoices(userInvoices);
 
     // Combine bookings with their invoices
     const combined = userBookings.map((booking: any) => {
-      const invoice = userInvoices.find((inv: any) => inv.bookingId === booking.id)
+      const invoice = userInvoices.find(
+        (inv: any) => inv.bookingId === booking.id
+      );
       return {
         ...booking,
         invoice,
-        hasInvoice: !!invoice
-      }
-    })
+        hasInvoice: !!invoice,
+      };
+    });
 
-    setCombinedRecords(combined)
-  }
+    setCombinedRecords(combined);
+  };
 
   useEffect(() => {
-    loadHistory()
+    loadHistory();
 
     // Listen for storage changes
     const handleStorageChange = () => {
-      console.log('[v0] Storage event detected, reloading service history')
-      loadHistory()
-    }
+      console.log("[v0] Storage event detected, reloading service history");
+      loadHistory();
+    };
 
-    window.addEventListener('storage', handleStorageChange)
-    return () => window.removeEventListener('storage', handleStorageChange)
-  }, [])
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
 
   const totalSpent = invoices.reduce((sum, inv) => {
-    const price = parseFloat(inv.totalPrice.replace('$', ''))
-    return sum + (isNaN(price) ? 0 : price)
-  }, 0)
+    const price = parseFloat(inv.totalPrice.replace("$", ""));
+    return sum + (isNaN(price) ? 0 : price);
+  }, 0);
 
   return (
     <div className="space-y-6">
@@ -105,7 +122,7 @@ export function ServiceHistory() {
         )}
       </Card>
     </div>
-  )
+  );
 }
 
 function ServiceRecordCard({ record }: { record: any }) {
@@ -124,7 +141,9 @@ function ServiceRecordCard({ record }: { record: any }) {
         </div>
         {record.invoice && (
           <div className="text-right">
-            <p className="text-2xl font-bold text-primary">{record.invoice.totalPrice}</p>
+            <p className="text-2xl font-bold text-primary">
+              {record.invoice.totalPrice}
+            </p>
           </div>
         )}
       </div>
@@ -133,7 +152,9 @@ function ServiceRecordCard({ record }: { record: any }) {
         <div className="flex items-center gap-2 text-sm">
           <Calendar className="h-4 w-4 text-muted-foreground" />
           <span className="text-muted-foreground">Date:</span>
-          <span className="font-medium">{new Date(record.date).toLocaleDateString()}</span>
+          <span className="font-medium">
+            {new Date(record.date).toLocaleDateString()}
+          </span>
         </div>
         <div className="flex items-center gap-2 text-sm">
           <Wrench className="h-4 w-4 text-muted-foreground" />
@@ -144,8 +165,10 @@ function ServiceRecordCard({ record }: { record: any }) {
 
       {record.notes && (
         <div className="flex items-start gap-2 mb-4">
-          <FileText className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-          <p className="text-sm text-muted-foreground leading-relaxed">{record.notes}</p>
+          <FileText className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            {record.notes}
+          </p>
         </div>
       )}
 
@@ -159,7 +182,9 @@ function ServiceRecordCard({ record }: { record: any }) {
             </div>
             <div>
               <span className="text-muted-foreground">Total:</span>
-              <span className="font-medium ml-2">{record.invoice.totalPrice}</span>
+              <span className="font-medium ml-2">
+                {record.invoice.totalPrice}
+              </span>
             </div>
           </div>
           {record.invoice.parts && (
@@ -170,7 +195,9 @@ function ServiceRecordCard({ record }: { record: any }) {
           )}
           {record.invoice.notes && (
             <div>
-              <span className="text-muted-foreground text-sm">Service Notes:</span>
+              <span className="text-muted-foreground text-sm">
+                Service Notes:
+              </span>
               <p className="text-sm mt-1">{record.invoice.notes}</p>
             </div>
           )}
@@ -178,8 +205,10 @@ function ServiceRecordCard({ record }: { record: any }) {
       )}
 
       {!record.invoice && (
-        <p className="text-sm text-muted-foreground">Waiting for workshop to complete service and send invoice.</p>
+        <p className="text-sm text-muted-foreground">
+          Waiting for workshop to complete service and send invoice.
+        </p>
       )}
     </Card>
-  )
+  );
 }

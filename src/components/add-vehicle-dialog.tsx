@@ -19,7 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Car, Upload } from "lucide-react";
+import { Car } from "lucide-react";
+import { addVehicle } from "@/lib/vehicle";
 
 interface AddVehicleDialogProps {
   onAddVehicle: (vehicle: {
@@ -27,9 +28,9 @@ interface AddVehicleDialogProps {
     model: string;
     year: number;
     plate: string;
-    mileage: string;
-    vin: string;
-    image?: string;
+    mileage: number;
+    image: string;
+    email: string;
   }) => void;
 }
 
@@ -56,39 +57,57 @@ const popularMakes = [
 
 export function AddVehicleDialog({ onAddVehicle }: AddVehicleDialogProps) {
   const [open, setOpen] = useState(false);
+
   const [make, setMake] = useState("");
   const [model, setModel] = useState("");
   const [year, setYear] = useState("");
   const [plate, setPlate] = useState("");
   const [mileage, setMileage] = useState("");
-  const [vin, setVin] = useState("");
-  const [imagePreview, setImagePreview] = useState<string>();
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    onAddVehicle({
+    const userEmail = localStorage.getItem("userEmail");
+    if (!userEmail) return console.error("User email missing");
+
+    let image = "";
+
+    // 1️⃣ Upload image if exists
+    if (imageFile) {
+      const fd = new FormData();
+      fd.append("file", imageFile);
+
+      const uploadRes = await fetch("/api/upload", {
+        method: "POST",
+        body: fd,
+      });
+
+      const uploadData = await uploadRes.json();
+      image = uploadData.url; // ★ URL from Supabase
+    }
+
+    // 2️⃣ Create vehicle object
+    const vehicle = {
       make,
       model,
       year: parseInt(year),
       plate,
-      mileage,
-      vin,
-      image:
-        imagePreview ||
-        `/placeholder.svg?height=200&width=300&query=${make} ${model}`,
-    });
+      mileage: parseInt(mileage),
+      image, // ★ send the URL, not the file
+      email: userEmail,
+    };
+
+    // 3️⃣ Send to your C# API
+    const result = await addVehicle(vehicle, userEmail);
+
+    if (result.success) {
+      onAddVehicle(vehicle);
+      setOpen(false);
+    } else {
+      console.error("Failed:", result.error);
+    }
 
     // Reset form
     setMake("");
@@ -96,9 +115,16 @@ export function AddVehicleDialog({ onAddVehicle }: AddVehicleDialogProps) {
     setYear("");
     setPlate("");
     setMileage("");
-    setVin("");
-    setImagePreview(undefined);
-    setOpen(false);
+    setImageFile(null);
+    setImagePreview(null);
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file)); // Preview
+    }
   };
 
   return (
@@ -109,38 +135,36 @@ export function AddVehicleDialog({ onAddVehicle }: AddVehicleDialogProps) {
           Add Vehicle
         </Button>
       </DialogTrigger>
+
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add New Vehicle</DialogTitle>
           <DialogDescription>
-            Enter your vehicle details to add it to your garage
+            Fill in your vehicle information to add it to your garage.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Make */}
             <div className="space-y-2">
-              <Label htmlFor="make">Make *</Label>
+              <Label>Manufacturer *</Label>
               <Select value={make} onValueChange={setMake} required>
-                <SelectTrigger id="make">
-                  <SelectValue placeholder="Select make" />
+                <SelectTrigger>
+                  <SelectValue placeholder="Select manufacturer" />
                 </SelectTrigger>
                 <SelectContent>
-                  {popularMakes.map((makeName) => (
-                    <SelectItem key={makeName} value={makeName}>
-                      {makeName}
+                  {popularMakes.map((m) => (
+                    <SelectItem key={m} value={m}>
+                      {m}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            {/* Model */}
             <div className="space-y-2">
-              <Label htmlFor="model">Model *</Label>
+              <Label>Model *</Label>
               <Input
-                id="model"
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
                 placeholder="e.g., Camry"
@@ -148,40 +172,35 @@ export function AddVehicleDialog({ onAddVehicle }: AddVehicleDialogProps) {
               />
             </div>
 
-            {/* Year */}
             <div className="space-y-2">
-              <Label htmlFor="year">Year *</Label>
+              <Label>Year *</Label>
               <Select value={year} onValueChange={setYear} required>
-                <SelectTrigger id="year">
+                <SelectTrigger>
                   <SelectValue placeholder="Select year" />
                 </SelectTrigger>
                 <SelectContent>
-                  {years.map((yearNum) => (
-                    <SelectItem key={yearNum} value={yearNum.toString()}>
-                      {yearNum}
+                  {years.map((y) => (
+                    <SelectItem key={y} value={y.toString()}>
+                      {y}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            {/* License Plate */}
             <div className="space-y-2">
-              <Label htmlFor="plate">License Plate *</Label>
+              <Label>License Plate *</Label>
               <Input
-                id="plate"
                 value={plate}
                 onChange={(e) => setPlate(e.target.value.toUpperCase())}
-                placeholder="e.g., ABC-1234"
+                placeholder="e.g., ABC1234"
                 required
               />
             </div>
 
-            {/* Mileage */}
             <div className="space-y-2">
-              <Label htmlFor="mileage">Current Mileage (km) *</Label>
+              <Label>Mileage (km) *</Label>
               <Input
-                id="mileage"
                 type="number"
                 value={mileage}
                 onChange={(e) => setMileage(e.target.value)}
@@ -189,39 +208,19 @@ export function AddVehicleDialog({ onAddVehicle }: AddVehicleDialogProps) {
                 required
               />
             </div>
-
-            {/* VIN */}
-            <div className="space-y-2">
-              <Label htmlFor="vin">VIN (Optional)</Label>
-              <Input
-                id="vin"
-                value={vin}
-                onChange={(e) => setVin(e.target.value.toUpperCase())}
-                placeholder="17-character VIN"
-                maxLength={17}
-              />
-            </div>
           </div>
 
-          {/* Image Upload */}
           <div className="space-y-2">
-            <Label htmlFor="image">Vehicle Photo (Optional)</Label>
-            <div className="flex items-center gap-4">
-              <Input
-                id="image"
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="flex-1"
+            <Label>Vehicle Image</Label>
+            <Input type="file" accept="image/*" onChange={handleImageChange} />
+
+            {imagePreview && (
+              <img
+                src={imagePreview}
+                alt="Preview"
+                className="w-32 h-32 object-cover rounded border"
               />
-              {imagePreview && (
-                <img
-                  src={imagePreview || "/placeholder.svg"}
-                  alt="Preview"
-                  className="w-20 h-20 object-cover rounded-lg border"
-                />
-              )}
-            </div>
+            )}
           </div>
 
           <div className="flex gap-3 pt-4">
@@ -229,13 +228,10 @@ export function AddVehicleDialog({ onAddVehicle }: AddVehicleDialogProps) {
               type="button"
               variant="outline"
               onClick={() => setOpen(false)}
-              className="flex-1"
             >
               Cancel
             </Button>
-            <Button type="submit" className="flex-1">
-              Add Vehicle
-            </Button>
+            <Button type="submit">Add Vehicle</Button>
           </div>
         </form>
       </DialogContent>

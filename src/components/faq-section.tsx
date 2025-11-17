@@ -3,7 +3,7 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion"
+} from "@/components/ui/accordion";
 
 export function FAQSection() {
   const faqs = [
@@ -37,13 +37,18 @@ export function FAQSection() {
       answer:
         "We use Neon DB for development and testing environments due to its excellent developer experience and serverless architecture. Production deployments run on AWS RDS for maximum reliability, performance, and enterprise features.",
     },
-  ]
+  ];
 
   return (
-    <section id="resources" className="container mx-auto px-4 py-16 md:py-24 bg-muted/30">
+    <section
+      id="resources"
+      className="container mx-auto px-18 py-16 md:py-24 bg-muted/30"
+    >
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">Frequently asked questions</h2>
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">
+            Frequently asked questions
+          </h2>
           <p className="text-lg text-muted-foreground">
             Everything you need to know about AutoCare+
           </p>
@@ -51,7 +56,11 @@ export function FAQSection() {
 
         <Accordion type="single" collapsible className="space-y-4">
           {faqs.map((faq, index) => (
-            <AccordionItem key={index} value={`item-${index}`} className="bg-card px-6 rounded-lg border">
+            <AccordionItem
+              key={index}
+              value={`item-${index}`}
+              className="bg-card px-6 rounded-lg border"
+            >
               <AccordionTrigger className="text-left hover:no-underline py-5">
                 <span className="font-semibold">{faq.question}</span>
               </AccordionTrigger>
@@ -63,5 +72,5 @@ export function FAQSection() {
         </Accordion>
       </div>
     </section>
-  )
+  );
 }

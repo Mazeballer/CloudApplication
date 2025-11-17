@@ -1,13 +1,13 @@
-"use client"
+"use client";
 
-import { ProtectedRoute } from "@/components/protected-route"
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Wrench, Search, Plus, Clock, DollarSign } from 'lucide-react'
-import { WorkshopNav } from "@/components/workshop-nav"
-import { useState } from "react"
+import { ProtectedRoute } from "@/components/protected-route";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Wrench, Search, Plus, Clock, DollarSign } from "lucide-react";
+import { WorkshopNav } from "@/components/workshop-nav";
+import { useState } from "react";
 
 const services = [
   {
@@ -17,7 +17,7 @@ const services = [
     price: "$49.99",
     duration: "30 mins",
     popularity: "high",
-    description: "Complete oil change with filter replacement"
+    description: "Complete oil change with filter replacement",
   },
   {
     id: 2,
@@ -26,7 +26,7 @@ const services = [
     price: "$79.99",
     duration: "45 mins",
     popularity: "high",
-    description: "Comprehensive brake system inspection"
+    description: "Comprehensive brake system inspection",
   },
   {
     id: 3,
@@ -35,7 +35,7 @@ const services = [
     price: "$39.99",
     duration: "30 mins",
     popularity: "medium",
-    description: "Rotate all four tires for even wear"
+    description: "Rotate all four tires for even wear",
   },
   {
     id: 4,
@@ -44,7 +44,7 @@ const services = [
     price: "$129.99",
     duration: "1-2 hours",
     popularity: "high",
-    description: "Complete engine computer diagnostics scan"
+    description: "Complete engine computer diagnostics scan",
   },
   {
     id: 5,
@@ -53,7 +53,7 @@ const services = [
     price: "$199.99",
     duration: "2-3 hours",
     popularity: "medium",
-    description: "Fluid change and transmission inspection"
+    description: "Fluid change and transmission inspection",
   },
   {
     id: 6,
@@ -62,19 +62,19 @@ const services = [
     price: "$89.99",
     duration: "30 mins",
     popularity: "medium",
-    description: "Battery health test and replacement if needed"
-  }
-]
+    description: "Battery health test and replacement if needed",
+  },
+];
 
 export default function WorkshopServicesPage() {
-  const [searchQuery, setSearchQuery] = useState("")
+  const [searchQuery, setSearchQuery] = useState("");
 
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-muted/30">
         <WorkshopNav />
 
-        <main className="container mx-auto px-4 py-8">
+        <main className="container mx-auto px-18 py-8">
           <div className="mb-8">
             <h1 className="text-3xl font-bold mb-2">Service Catalog</h1>
             <p className="text-muted-foreground">
@@ -102,7 +102,10 @@ export default function WorkshopServicesPage() {
           {/* Services Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {services.map((service) => (
-              <Card key={service.id} className="p-6 hover:shadow-lg transition-shadow">
+              <Card
+                key={service.id}
+                className="p-6 hover:shadow-lg transition-shadow"
+              >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
                     <h3 className="font-bold text-lg mb-2">{service.name}</h3>
@@ -153,5 +156,5 @@ export default function WorkshopServicesPage() {
         </main>
       </div>
     </ProtectedRoute>
-  )
+  );
 }

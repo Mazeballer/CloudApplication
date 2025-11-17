@@ -1,66 +1,73 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Eye, EyeOff, AlertCircle } from 'lucide-react'
-import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { login } from "@/lib/auth"
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Eye, EyeOff, AlertCircle } from "lucide-react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { login } from "@/lib/auth";
 
 interface LoginFormProps {
-  type: 'driver' | 'workshop'
+  type: "driver" | "workshop";
 }
 
 export function LoginForm({ type }: LoginFormProps) {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
-  const [error, setError] = useState("")
-  const [success, setSuccess] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (searchParams.get('registered') === 'true') {
-      setSuccess('Account created successfully! Please login.')
+    if (searchParams.get("registered") === "true") {
+      setSuccess("Account created successfully! Please login.");
     }
-  }, [searchParams])
+  }, [searchParams]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-    setSuccess("")
-    setIsLoading(true)
+  const handleSubmit = async (e: any) => {
+    e.preventDefault();
+    setError("");
+    setIsLoading(true);
 
-    await new Promise(resolve => setTimeout(resolve, 500))
+    const result = await login(email, password, type);
 
-    const result = login(email, password, type)
-    
     if (result.success) {
-      if (type === 'workshop') {
-        router.push("/workshop/dashboard")
+      // Save user in session or localStorage
+      localStorage.setItem("currentUser", JSON.stringify(result.user));
+      localStorage.setItem("UserId", result.user.id);
+      localStorage.setItem("isAuthenticated", "true");
+      localStorage.setItem("userEmail", result.user.email);
+      localStorage.setItem("userType", result.user.role);
+      setIsLoading(false);
+
+      if (type === "workshop") {
+        router.push("/workshop/dashboard");
       } else {
-        router.push("/dashboard")
+        router.push("/dashboard");
       }
     } else {
-      setError(result.error || "Invalid email or password")
-      setIsLoading(false)
+      setError(result.error || "Login failed");
+      setIsLoading(false);
     }
-  }
+  };
 
-  const signupLink = type === 'workshop' ? '/workshop/signup' : '/signup'
+  const signupLink = type === "workshop" ? "/workshop/signup" : "/signup";
 
   return (
     <Card className="p-8">
       <div className="mb-8">
         <h2 className="text-3xl font-bold mb-2">Sign in</h2>
         <p className="text-muted-foreground">
-          {type === 'workshop' ? 'Access your workshop dashboard' : 'Access your vehicle dashboard'}
+          {type === "workshop"
+            ? "Access your workshop dashboard"
+            : "Access your vehicle dashboard"}
         </p>
       </div>
 
@@ -136,28 +143,37 @@ export function LoginForm({ type }: LoginFormProps) {
 
       <div className="mt-6 text-center text-sm text-muted-foreground">
         Don't have an account?{" "}
-        <Link href={signupLink} className="text-primary hover:underline font-medium">
+        <Link
+          href={signupLink}
+          className="text-primary hover:underline font-medium"
+        >
           Sign up
         </Link>
       </div>
-      
+
       <div className="mt-4 text-center text-sm text-muted-foreground">
-        {type === 'driver' ? (
+        {type === "driver" ? (
           <>
             Are you a workshop?{" "}
-            <Link href="/workshop/login" className="text-primary hover:underline font-medium">
+            <Link
+              href="/workshop/login"
+              className="text-primary hover:underline font-medium"
+            >
               Sign in as workshop
             </Link>
           </>
         ) : (
           <>
             Are you a car owner?{" "}
-            <Link href="/login" className="text-primary hover:underline font-medium">
+            <Link
+              href="/login"
+              className="text-primary hover:underline font-medium"
+            >
               Sign in as car owner
             </Link>
           </>
         )}
       </div>
     </Card>
-  )
+  );
 }
