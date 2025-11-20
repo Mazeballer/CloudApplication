@@ -26,28 +26,21 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-
-interface Booking {
-  id: string;
-  customerId: string;
-  customerName: string;
-  customerEmail: string;
-  customerPhone: string;
-  vehicle: string;
-  service: string;
-  date: string;
-  time: string;
-  workshop: string;
-  notes: string;
-  status: string;
-  createdAt: string;
-}
+import { useAuth } from "@/lib/auth";
+import { useWorkshops } from "@/contexts/WorkshopContext";
+import { useServiceRecords } from "@/contexts/ServiceRecordContext";
 
 export default function WorkshopAppointmentsPage() {
+  const { user } = useAuth();
+  const { currentWorkshop, loading: workshopLoading } = useWorkshops();
+  const { recordsByWorkshop, loading, refreshServiceRecords } =
+    useServiceRecords();
+
   const [searchQuery, setSearchQuery] = useState("");
-  const [appointments, setAppointments] = useState<Booking[]>([]);
-  const [selectedAppointment, setSelectedAppointment] =
-    useState<Booking | null>(null);
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [selectedAppointment, setSelectedAppointment] = useState<any | null>(
+    null
+  );
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
   const [extractedData, setExtractedData] = useState({
     totalPrice: "",
@@ -56,19 +49,54 @@ export default function WorkshopAppointmentsPage() {
     notes: "",
   });
 
+  // Fetch REAL data
   useEffect(() => {
-    const bookings = JSON.parse(
-      localStorage.getItem("autocare_bookings") || "[]"
-    );
-    setAppointments(bookings);
-  }, []);
+    if (!user || loading) return;
 
+    const workshopId = currentWorkshop?.id;
+    const workshopRecords = recordsByWorkshop[workshopId ?? ""] || [];
+
+    const mapped = workshopRecords.map((r) => ({
+      id: r.id,
+      customerId: r.userId,
+      customerName: r.userName,
+      customerEmail: r.userEmail,
+      customerPhone: r.userPhone,
+      vehicle: r.vehicleName,
+      service: r.serviceName,
+      date: r.serviceDate.slice(0, 10),
+      time: new Date(r.serviceDate).toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      workshop: r.workshopName,
+      notes: r.remarks || "",
+      status: r.status,
+      createdAt: r.serviceDate,
+    }));
+
+    setAppointments(mapped);
+  }, [recordsByWorkshop, loading, user]);
+
+  // Update service status (REAL backend)
+  const updateStatus = async (id: string, status: string) => {
+    await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/service-records/${id}/status`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(status),
+      }
+    );
+
+    refreshServiceRecords();
+  };
+
+  // Invoice upload (still using localStorage)
   const handleInvoiceUpload = async (file: File) => {
     setInvoiceFile(file);
 
-    // Simulate AI extraction after a short delay
     setTimeout(() => {
-      // Mock extracted data - in real app, this would call an AI API
       setExtractedData({
         totalPrice: "$" + (Math.random() * 500 + 100).toFixed(2),
         parts: "Oil Filter ($15), Motor Oil 5W-30 ($45), Air Filter ($25)",
@@ -106,6 +134,7 @@ export default function WorkshopAppointmentsPage() {
     }
   };
 
+  // Search filter
   const filteredAppointments = appointments.filter(
     (apt) =>
       apt.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -126,7 +155,7 @@ export default function WorkshopAppointmentsPage() {
             </p>
           </div>
 
-          {/* Filters and Search */}
+          {/* Search */}
           <div className="flex flex-col md:flex-row gap-4 mb-6">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -146,9 +175,7 @@ export default function WorkshopAppointmentsPage() {
           {/* Appointments List */}
           {filteredAppointments.length === 0 ? (
             <Card className="p-12 text-center">
-              <p className="text-muted-foreground">
-                No appointments found. Customer bookings will appear here.
-              </p>
+              <p className="text-muted-foreground">No appointments found.</p>
             </Card>
           ) : (
             <div className="space-y-4">
@@ -158,6 +185,7 @@ export default function WorkshopAppointmentsPage() {
                   className="p-6 hover:shadow-lg transition-shadow"
                 >
                   <div className="flex items-center justify-between">
+                    {/* DATE BOX */}
                     <div className="flex items-center gap-6 flex-1">
                       <div className="text-center">
                         <div className="bg-teal-500/10 px-4 py-2 rounded-lg">
@@ -174,15 +202,45 @@ export default function WorkshopAppointmentsPage() {
                       </div>
 
                       <div className="flex-1">
+                        {/* Customer + Status */}
                         <div className="flex items-center gap-3 mb-2">
                           <h3 className="font-bold text-lg">
                             {appointment.customerName}
                           </h3>
-                          <Badge variant="secondary">
-                            {appointment.status}
-                          </Badge>
+
+                          <div className="flex items-center gap-2">
+                            <select
+                              className="border rounded px-2 py-1 text-sm"
+                              value={appointment.status}
+                              onChange={(e) => {
+                                // temporarily store chosen status into the local object
+                                appointment._newStatus = e.target.value;
+                                setAppointments([...appointments]); // forces UI update
+                              }}
+                            >
+                              <option value="Request">Request</option>
+                              <option value="Scheduled">Scheduled</option>
+                              <option value="InProgress">In Progress</option>
+                              <option value="Completed">Completed</option>
+                              <option value="Cancelled">Cancelled</option>
+                            </select>
+
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() =>
+                                updateStatus(
+                                  appointment.id,
+                                  appointment._newStatus || appointment.status
+                                )
+                              }
+                            >
+                              Update
+                            </Button>
+                          </div>
                         </div>
 
+                        {/* Details */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                           <div className="flex items-center gap-2 text-muted-foreground">
                             <Clock className="h-4 w-4" />
@@ -211,6 +269,7 @@ export default function WorkshopAppointmentsPage() {
                       </div>
                     </div>
 
+                    {/* Upload invoice */}
                     <div className="flex gap-2">
                       <Dialog>
                         <DialogTrigger asChild>
@@ -222,19 +281,19 @@ export default function WorkshopAppointmentsPage() {
                             Upload Invoice
                           </Button>
                         </DialogTrigger>
+
                         <DialogContent className="max-w-2xl">
                           <DialogHeader>
                             <DialogTitle>
                               Upload Invoice for {appointment.customerName}
                             </DialogTitle>
                             <DialogDescription>
-                              Upload an invoice photo and we'll automatically
-                              extract the details
+                              Upload invoice photo and we will extract details
                             </DialogDescription>
                           </DialogHeader>
 
+                          {/* Invoice upload */}
                           <div className="space-y-6 py-4">
-                            {/* Invoice Upload */}
                             <div className="space-y-2">
                               <Label>Invoice Photo</Label>
                               <div className="border-2 border-dashed rounded-lg p-8 text-center">
@@ -255,7 +314,7 @@ export default function WorkshopAppointmentsPage() {
                                 >
                                   <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                                   <p className="text-sm text-muted-foreground mb-2">
-                                    Click to upload invoice photo
+                                    Click to upload invoice
                                   </p>
                                   {invoiceFile && (
                                     <p className="text-sm font-medium text-teal-600">
@@ -266,7 +325,7 @@ export default function WorkshopAppointmentsPage() {
                               </div>
                             </div>
 
-                            {/* Extracted Data */}
+                            {/* Extracted data */}
                             {invoiceFile && (
                               <div className="space-y-4 border-t pt-4">
                                 <h4 className="font-semibold">
@@ -287,6 +346,7 @@ export default function WorkshopAppointmentsPage() {
                                       placeholder="$0.00"
                                     />
                                   </div>
+
                                   <div className="space-y-2">
                                     <Label>Labor Cost</Label>
                                     <Input
@@ -332,6 +392,7 @@ export default function WorkshopAppointmentsPage() {
                                   />
                                 </div>
 
+                                {/* Send Invoice */}
                                 <Button
                                   className="w-full"
                                   onClick={sendInvoiceToCustomer}

@@ -9,51 +9,64 @@ import {
   Car,
   Clock,
   DollarSign,
-  TrendingUp,
-  Wrench,
   Users,
+  Wrench,
   AlertCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { initializeDemoData } from "@/lib/demo-data";
+import { useAuth } from "@/lib/auth";
+import { useServiceRecords } from "@/contexts/ServiceRecordContext";
+import { useWorkshops } from "@/contexts/WorkshopContext";
 
 export default function WorkshopDashboard() {
+  const { user } = useAuth();
+  const { currentWorkshop, loading: workshopLoading } = useWorkshops();
+  const { recordsByWorkshop, loading } = useServiceRecords();
+
   const [stats, setStats] = useState({
     todayAppointments: 0,
     activeServices: 0,
     totalCustomers: 0,
-    monthlyRevenue: 0,
+    monthlyRevenue: 0, // revenue stays demo
   });
+
   const [todaySchedule, setTodaySchedule] = useState<any[]>([]);
 
   useEffect(() => {
-    initializeDemoData();
+    if (!user || loading) return;
 
-    const bookings = JSON.parse(
-      localStorage.getItem("autocare_bookings") || "[]"
+    const workshopId = currentWorkshop?.id; // your workshop account stores this
+
+    console.log("WorkShop ID: ", workshopId);
+    const workshopRecords = recordsByWorkshop[workshopId ?? ""] || [];
+
+    const todayString = new Date().toISOString().slice(0, 10); // yyyy-mm-dd
+
+    // === REAL DATA ===
+
+    // 1. Today Appointments (Scheduled for today)
+    const todays = workshopRecords.filter(
+      (r) =>
+        r.status === "Scheduled" && r.serviceDate.slice(0, 10) === todayString
     );
+
+    // 2. Active services (Scheduled OR InProgress)
+    const activeServices = workshopRecords.filter(
+      (r) => r.status === "Scheduled" || r.status === "InProgress"
+    ).length;
+
+    // 3. Total customers (unique vehicles OR unique users)
+    const uniqueCustomers = new Set(workshopRecords.map((r) => r.userId));
+
+    // === REVENUE still using demo data ===
     const invoices = JSON.parse(
       localStorage.getItem("autocare_invoices") || "[]"
     );
+    const now = new Date();
+    const thisMonth = now.getMonth();
+    const thisYear = now.getFullYear();
 
-    // Get today's date
-    const today = new Date().toISOString().split("T")[0];
-
-    // Count today's appointments
-    const todayAppts = bookings.filter((b: any) => b.date === today);
-
-    // Count active services (scheduled bookings)
-    const activeServices = bookings.filter(
-      (b: any) => b.status === "scheduled"
-    ).length;
-
-    // Count unique customers
-    const uniqueCustomers = new Set(bookings.map((b: any) => b.customerId));
-
-    // Calculate monthly revenue from invoices
-    const thisMonth = new Date().getMonth();
-    const thisYear = new Date().getFullYear();
     const monthlyRevenue = invoices.reduce((sum: number, inv: any) => {
       const invDate = new Date(inv.sentAt);
       if (
@@ -66,16 +79,17 @@ export default function WorkshopDashboard() {
       return sum;
     }, 0);
 
+    // Update stats
     setStats({
-      todayAppointments: todayAppts.length,
+      todayAppointments: todays.length,
       activeServices,
       totalCustomers: uniqueCustomers.size,
       monthlyRevenue,
     });
 
-    // Set today's schedule
-    setTodaySchedule(todayAppts.slice(0, 4));
-  }, []);
+    // Today schedule list (limit 4)
+    setTodaySchedule(todays.slice(0, 4));
+  }, [user, recordsByWorkshop, loading]);
 
   return (
     <ProtectedRoute>
@@ -135,6 +149,7 @@ export default function WorkshopDashboard() {
 
           {/* Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {/* Today's Appointments */}
             <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -156,6 +171,7 @@ export default function WorkshopDashboard() {
               </div>
             </Card>
 
+            {/* Active Services */}
             <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -164,7 +180,7 @@ export default function WorkshopDashboard() {
                   </p>
                   <p className="text-3xl font-bold">{stats.activeServices}</p>
                   <p className="text-sm text-muted-foreground mt-2">
-                    Scheduled bookings
+                    Scheduled / In Progress
                   </p>
                 </div>
                 <div className="bg-amber-500/10 p-3 rounded-lg">
@@ -173,6 +189,7 @@ export default function WorkshopDashboard() {
               </div>
             </Card>
 
+            {/* Total Customers */}
             <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -181,7 +198,7 @@ export default function WorkshopDashboard() {
                   </p>
                   <p className="text-3xl font-bold">{stats.totalCustomers}</p>
                   <p className="text-sm text-muted-foreground mt-2">
-                    Unique customers
+                    Unique vehicle owners
                   </p>
                 </div>
                 <div className="bg-blue-500/10 p-3 rounded-lg">
@@ -190,6 +207,7 @@ export default function WorkshopDashboard() {
               </div>
             </Card>
 
+            {/* Monthly Revenue */}
             <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -210,10 +228,12 @@ export default function WorkshopDashboard() {
             </Card>
           </div>
 
+          {/* Today Schedule + Quick Actions */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Today's Schedule */}
             <Card className="lg:col-span-2 p-6">
               <h2 className="text-xl font-bold mb-4">Today's Schedule</h2>
+
               {todaySchedule.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -231,27 +251,37 @@ export default function WorkshopDashboard() {
                           <div className="bg-teal-500/10 p-2 rounded-lg">
                             <Clock className="h-5 w-5 text-teal-600" />
                           </div>
+
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
                               <p className="font-semibold">
-                                {appointment.customerName}
+                                {appointment.serviceName}
                               </p>
                               <Badge variant="secondary">
                                 {appointment.status}
                               </Badge>
                             </div>
+
                             <p className="text-sm text-muted-foreground">
-                              {appointment.service}
+                              {appointment.vehicleName}
                             </p>
+
                             <p className="text-sm text-muted-foreground flex items-center gap-1">
                               <Car className="h-3 w-3" />
-                              {appointment.vehicle}
+                              {appointment.workshopName}
                             </p>
                           </div>
+
                           <p className="text-sm font-medium">
-                            {appointment.time}
+                            {new Date(
+                              appointment.serviceDate
+                            ).toLocaleTimeString("en-US", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
                           </p>
                         </div>
+
                         <Button size="sm" variant="outline" asChild>
                           <Link href="/workshop/appointments">View</Link>
                         </Button>
@@ -262,7 +292,7 @@ export default function WorkshopDashboard() {
               )}
             </Card>
 
-            {/* Quick Actions & Alerts */}
+            {/* Quick Actions */}
             <div className="space-y-6">
               <Card className="p-6">
                 <h2 className="text-xl font-bold mb-4">Quick Actions</h2>
@@ -300,6 +330,7 @@ export default function WorkshopDashboard() {
                       </p>
                     </div>
                   </div>
+
                   <div className="flex items-start gap-2 p-3 bg-blue-500/10 rounded-lg">
                     <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
                     <div>

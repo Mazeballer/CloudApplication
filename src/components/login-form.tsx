@@ -12,7 +12,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { login } from "@/lib/auth";
 
 interface LoginFormProps {
-  type: "driver" | "workshop";
+  type: "Driver" | "Workshop";
 }
 
 export function LoginForm({ type }: LoginFormProps) {
@@ -47,7 +47,7 @@ export function LoginForm({ type }: LoginFormProps) {
       localStorage.setItem("userType", result.user.role);
       setIsLoading(false);
 
-      if (type === "workshop") {
+      if (type === "Workshop") {
         router.push("/workshop/dashboard");
       } else {
         router.push("/dashboard");
@@ -58,14 +58,14 @@ export function LoginForm({ type }: LoginFormProps) {
     }
   };
 
-  const signupLink = type === "workshop" ? "/workshop/signup" : "/signup";
+  const signupLink = type === "Workshop" ? "/workshop/signup" : "/signup";
 
   return (
     <Card className="p-8">
       <div className="mb-8">
         <h2 className="text-3xl font-bold mb-2">Sign in</h2>
         <p className="text-muted-foreground">
-          {type === "workshop"
+          {type === "Workshop"
             ? "Access your workshop dashboard"
             : "Access your vehicle dashboard"}
         </p>
@@ -152,7 +152,7 @@ export function LoginForm({ type }: LoginFormProps) {
       </div>
 
       <div className="mt-4 text-center text-sm text-muted-foreground">
-        {type === "driver" ? (
+        {type === "Driver" ? (
           <>
             Are you a workshop?{" "}
             <Link

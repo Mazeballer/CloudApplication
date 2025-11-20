@@ -6,7 +6,7 @@ export interface User {
   id: string
   email: string
   name: string
-  type: 'driver' | 'workshop'
+  type: 'Driver' | 'Workshop'
   // Driver specific fields
   phone?: string
   // Workshop specific fields
@@ -36,6 +36,8 @@ export async function register(data: any, password: string) {
 export async function registerWorkshop(data: any, password: string) {
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
+  console.log("Data: ", data)
+
   const res = await fetch(`${API_URL}/api/auth/register-workshop`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -46,7 +48,7 @@ export async function registerWorkshop(data: any, password: string) {
       workshopName: data.workshopName,
       ownerName: data.ownerName,
       address: data.address,
-      hours: data.hours,
+      operatingHours: data.operatingHours,
     }),
   });
 
@@ -82,9 +84,9 @@ export function getUserEmail(): string | null {
   return localStorage.getItem("userEmail")
 }
 
-export function getUserType(): 'driver' | 'workshop' | null {
+export function getUserType(): 'Driver' | 'Workshop' | null {
   if (typeof window === 'undefined') return null
-  return localStorage.getItem("userType") as 'driver' | 'workshop' | null
+  return localStorage.getItem("userType") as 'Driver' | 'Workshop' | null
 }
 
 export function logout(): void {
@@ -98,7 +100,7 @@ export function logout(): void {
 export function useAuth() {
   const [isAuth, setIsAuth] = useState(false)
   const [user, setUser] = useState<User | null>(null)
-  const [userType, setUserType] = useState<'driver' | 'workshop' | null>(null)
+  const [userType, setUserType] = useState<'Driver' | 'Workshop' | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {

@@ -8,7 +8,7 @@ import React, {
   ReactNode,
 } from "react";
 import { getVehiclesByEmail } from "@/lib/vehicle";
-import { getCurrentUser } from "@/lib/auth";
+import { useAuth } from "@/lib/auth";
 
 interface Vehicle {
   id: string;
@@ -18,6 +18,8 @@ interface Vehicle {
   plate: string;
   mileage: string;
   image: string;
+  color: string;
+  purchaseDate: string;
   status: string;
   nextService: string;
 }
@@ -33,22 +35,24 @@ interface VehiclesContextType {
 const VehiclesContext = createContext<VehiclesContextType | null>(null);
 
 export function VehiclesProvider({ children }: { children: ReactNode }) {
+  const { user, isLoading: authLoading } = useAuth();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [totalVehicles, setTotalVehicles] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   const refreshVehicles = async () => {
+    // Don't fetch if no user email
+    if (!user?.email) {
+      setVehicles([]);
+      setTotalVehicles(0);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
-
-      const user = getCurrentUser();
-      if (!user) {
-        setVehicles([]);
-        setLoading(false);
-        return;
-      }
 
       const data = await getVehiclesByEmail(user.email);
 
@@ -60,6 +64,8 @@ export function VehiclesProvider({ children }: { children: ReactNode }) {
         plate: v.plateNumber,
         mileage: `${v.currentMileage.toLocaleString()} km`,
         image: v.image || "/placeholder.svg",
+        color: v.color,
+        purchaseDate: v.purchaseDate,
         status: "good",
         nextService: "Not scheduled",
       }));
@@ -74,8 +80,19 @@ export function VehiclesProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    refreshVehicles();
-  }, []);
+    // Wait for auth to finish loading
+    if (authLoading) return;
+
+    // Only fetch vehicles if user is authenticated
+    if (user?.email) {
+      refreshVehicles();
+    } else {
+      // Clear vehicles if no user
+      setVehicles([]);
+      setTotalVehicles(0);
+      setLoading(false);
+    }
+  }, [authLoading, user?.email]); // Re-run when auth state changes
 
   return (
     <VehiclesContext.Provider

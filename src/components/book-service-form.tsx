@@ -1,89 +1,197 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
+import { useEffect, useState } from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Calendar, Clock, CheckCircle, MapPin, Star, Phone, DollarSign, Timer } from 'lucide-react'
-import { getCurrentUser } from "@/lib/auth"
+} from "@/components/ui/select";
 
-const getWorkshops = () => {
-  if (typeof window === 'undefined') return []
-  const workshops = localStorage.getItem('autocare_workshops')
-  return workshops ? JSON.parse(workshops) : []
+import {
+  Calendar,
+  CheckCircle,
+  MapPin,
+  Star,
+  DollarSign,
+  Timer,
+  Wrench,
+  Zap,
+  Hammer,
+} from "lucide-react";
+
+import { getCurrentUser } from "@/lib/auth";
+import { createServiceBooking } from "@/lib/serviceRecord";
+import { useWorkshops } from "@/contexts/WorkshopContext";
+import { useVehicles } from "@/contexts/VehiclesContext";
+import { useServices } from "@/contexts/ServiceContext";
+
+const formatDuration = (totalMinutes: number) => {
+  if (totalMinutes === 0) return "0 mins";
+
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  let parts = [];
+  if (hours > 0) {
+    parts.push(`${hours} hr`);
+  }
+  if (minutes > 0) {
+    parts.push(`${minutes} mins`);
+  }
+
+  return parts.join(" ");
+};
+
+function convertTo24h(time12h: string) {
+  const [time, modifier] = time12h.split(" ");
+  let [hours, minutes] = time.split(":");
+
+  if (hours === "12") hours = "00";
+  if (modifier === "PM") hours = (parseInt(hours) + 12).toString();
+
+  return `${hours.padStart(2, "0")}:${minutes}`;
+}
+
+// Helper function to get the icon component based on category
+const getCategoryIcon = (category: string, className: string) => {
+  switch (category) {
+    case "Maintenance":
+      return <Wrench className={className} />;
+    case "Diagnostics":
+      return <Zap className={className} />;
+    case "Repair":
+      return <Hammer className={className} />;
+    default:
+      return <Wrench className={className} />;
+  }
+};
+
+function formatTime12h(time: string) {
+  if (!time) return "";
+  const [h, m] = time.split(":");
+  const hour = parseInt(h);
+  const suffix = hour >= 12 ? "PM" : "AM";
+  const hour12 = hour % 12 || 12;
+  return `${hour12}:${m} ${suffix}`;
+}
+
+function generateTimeSlots(start: string, end: string) {
+  const slots = [];
+  let current = new Date(`2000-01-01T${start}`);
+  const endDate = new Date(`2000-01-01T${end}`);
+
+  while (current <= endDate) {
+    const hh = current.getHours().toString().padStart(2, "0");
+    const mm = current.getMinutes().toString().padStart(2, "0");
+    slots.push(formatTime12h(`${hh}:${mm}`));
+    current.setMinutes(current.getMinutes() + 60); // 1-hour interval
+  }
+
+  return slots;
 }
 
 export function BookServiceForm() {
-  const [submitted, setSubmitted] = useState(false)
-  const [selectedWorkshop, setSelectedWorkshop] = useState<any>(null)
-  const [selectedService, setSelectedService] = useState<any>(null)
-  const [selectedVehicle, setSelectedVehicle] = useState("")
-  const [selectedDate, setSelectedDate] = useState("")
-  const [selectedTime, setSelectedTime] = useState("")
-  const [phone, setPhone] = useState("")
-  const [notes, setNotes] = useState("")
-  const [vehicles, setVehicles] = useState<any[]>([])
-  const [workshops, setWorkshops] = useState<any[]>([])
+  const [submitted, setSubmitted] = useState(false);
+  const [selectedWorkshop, setSelectedWorkshop] = useState<any>(null);
+  const [selectedService, setSelectedService] = useState<any>(null);
+  const [selectedVehicle, setSelectedVehicle] = useState<any>(null);
+  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedTime, setSelectedTime] = useState("");
+  const [phone, setPhone] = useState("");
+  const [notes, setNotes] = useState("");
+  const [timeSlots, setTimeSlots] = useState<string[]>([]);
+  const [closedMessage, setClosedMessage] = useState("");
 
-  useEffect(() => {
-    const storedVehicles = JSON.parse(localStorage.getItem('autocare_vehicles') || '[]')
-    const storedWorkshops = getWorkshops()
-    setVehicles(storedVehicles)
-    setWorkshops(storedWorkshops)
-  }, [])
+  // 🚀 Load workshops & vehicles from context
+  const { workshops, loading: loadingWorkshops } = useWorkshops();
+  const { vehicles, loading: loadingVehicles } = useVehicles();
+  const { servicesByWorkshop, loading: loadingServices } = useServices();
+
+  console.log(workshops);
+
+  const services = selectedWorkshop
+    ? servicesByWorkshop[selectedWorkshop.id] || []
+    : [];
 
   const handleWorkshopSelect = (workshop: any) => {
-    setSelectedWorkshop(workshop)
-    setSelectedService(null)
-  }
+    setSelectedWorkshop(workshop);
+    setSelectedService(null); // reset service when selecting workshop
+  };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!selectedWorkshop || !selectedService || !selectedVehicle || !selectedDate || !selectedTime) {
-      alert("Please fill in all required fields")
-      return
+  const handleServiceSelect = (service: any) => {
+    setSelectedService(service);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (
+      !selectedWorkshop ||
+      !selectedService ||
+      !selectedVehicle ||
+      !selectedDate ||
+      !selectedTime
+    ) {
+      console.error("Please fill in all required fields");
+      return;
     }
 
-    const user = getCurrentUser()
-    const booking = {
-      id: Date.now().toString(),
-      customerId: user?.id,
-      customerName: user?.name || "Guest",
-      customerEmail: user?.email,
-      customerPhone: phone,
-      vehicle: selectedVehicle,
-      service: selectedService.name,
+    const user = getCurrentUser();
+
+    const payload = {
+      vehicleId: selectedVehicle.id, // make sure you pass ID not string
+      workshopProfileId: selectedWorkshop.id,
+      serviceId: selectedService.id,
+      serviceDate: new Date(
+        `${selectedDate}T${convertTo24h(selectedTime)}`
+      ).toISOString(),
+      serviceMileage: parseInt(selectedVehicle.mileage.replace(/[^0-9]/g, "")),
+      remarks: notes,
+
+      serviceName: selectedService.name,
       servicePrice: selectedService.price,
-      date: selectedDate,
-      time: selectedTime,
-      workshop: selectedWorkshop.name,
-      workshopAddress: selectedWorkshop.address,
-      notes: notes,
-      status: "scheduled",
-      createdAt: new Date().toISOString()
-    }
-    
-    const bookings = JSON.parse(localStorage.getItem('autocare_bookings') || '[]')
-    bookings.push(booking)
-    localStorage.setItem('autocare_bookings', JSON.stringify(bookings))
-    
-    setSubmitted(true)
-    setTimeout(() => {
-      window.location.href = '/dashboard'
-    }, 2000)
-  }
 
+      status: "Scheduled",
+    };
+
+    await createServiceBooking(payload);
+
+    setSubmitted(true);
+    setTimeout(() => {
+      window.location.href = "/dashboard";
+    }, 1500);
+  };
+
+  useEffect(() => {
+    if (!selectedDate || !selectedWorkshop) return;
+
+    const d = new Date(selectedDate);
+    const dayName = d.toLocaleDateString("en-US", { weekday: "long" });
+
+    const dayHours = selectedWorkshop.hours?.hoursByDay?.find(
+      (d: any) => d.day === dayName
+    );
+
+    if (!dayHours || !dayHours.isOpen) {
+      setClosedMessage(`This workshop is closed on ${dayName}.`);
+      setTimeSlots([]);
+      return;
+    }
+
+    setClosedMessage("");
+    const slots = generateTimeSlots(dayHours.startTime, dayHours.endTime);
+    setTimeSlots(slots);
+  }, [selectedDate, selectedWorkshop]);
+
+  // ✔ Success screen
   if (submitted) {
     return (
       <Card className="p-12 text-center max-w-2xl mx-auto">
@@ -92,180 +200,294 @@ export function BookServiceForm() {
             <CheckCircle className="h-10 w-10 text-green-500" />
           </div>
         </div>
-        <h2 className="text-3xl font-bold mb-4">Service Booked Successfully!</h2>
+        <h2 className="text-3xl font-bold mb-4">
+          Service Booked Successfully!
+        </h2>
         <p className="text-muted-foreground mb-6">
-          Your appointment at {selectedWorkshop?.name} has been confirmed for {selectedDate} at {selectedTime}.
+          Your appointment at {selectedWorkshop?.name} has been confirmed for{" "}
+          {selectedDate} at {selectedTime}.
         </p>
-        <p className="text-sm text-muted-foreground">Redirecting to dashboard...</p>
+        <p className="text-sm text-muted-foreground">
+          Redirecting to dashboard...
+        </p>
       </Card>
-    )
+    );
   }
 
   return (
     <div className="grid lg:grid-cols-2 gap-6">
-      {/* Left Column: Workshop Selection & Map */}
+      {/* LEFT COLUMN */}
       <div className="space-y-6">
         {/* Map */}
         <Card className="overflow-hidden h-80">
           <iframe
-            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d100939.98555098464!2d-122.507640045!3d37.757815!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x80859a6d00690021%3A0x4a501367f076adff!2sSan%20Francisco%2C%20CA!5e0!3m2!1sen!2sus!4v1234567890"
+            src="https://www.google.com/maps/embed?pb=!1m18..."
             width="100%"
             height="100%"
             style={{ border: 0 }}
-            allowFullScreen
             loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
           />
         </Card>
 
         {/* Workshop List */}
         <div className="space-y-4">
           <h3 className="text-lg font-semibold">Select Workshop</h3>
-          {workshops.map((workshop) => (
-            <Card
-              key={workshop.id}
-              className={`p-4 cursor-pointer transition-all hover:shadow-md ${
-                selectedWorkshop?.id === workshop.id ? 'ring-2 ring-primary' : ''
-              }`}
-              onClick={() => handleWorkshopSelect(workshop)}
-            >
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <h4 className="font-semibold text-lg">{workshop.name}</h4>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                    <MapPin className="h-3 w-3" />
-                    <span>{workshop.address}</span>
+
+          {loadingWorkshops && (
+            <p className="text-muted-foreground">Loading workshops...</p>
+          )}
+
+          {!loadingWorkshops &&
+            workshops.map((workshop: any) => (
+              <Card
+                key={workshop.id}
+                className={`group relative p-5 cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 ${
+                  selectedWorkshop?.id === workshop.id
+                    ? "ring-2 ring-primary shadow-md bg-primary/5"
+                    : "hover:border-primary/50"
+                }`}
+                onClick={() => handleWorkshopSelect(workshop)}
+              >
+                {/* Selected Indicator */}
+                {selectedWorkshop?.id === workshop.id && (
+                  <div className="absolute top-3 right-3">
+                    <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
+                      <CheckCircle className="h-5 w-5 text-primary-foreground" />
+                    </div>
                   </div>
-                </div>
-                <Badge variant="secondary">{workshop.distance}</Badge>
-              </div>
-              
-              <div className="flex items-center gap-4 text-sm mt-3">
-                <div className="flex items-center gap-1">
-                  <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                  <span className="font-medium">{workshop.rating}</span>
-                  <span className="text-muted-foreground">({workshop.reviews} reviews)</span>
-                </div>
-                <div className="flex items-center gap-1 text-muted-foreground">
-                  <Phone className="h-3 w-3" />
-                  <span>{workshop.phone}</span>
-                </div>
-              </div>
+                )}
 
-              <p className="text-xs text-muted-foreground mt-2">{workshop.hours}</p>
+                <div className="space-y-3">
+                  {/* Workshop Name & Location */}
+                  <div className="pr-10">
+                    <h4 className="font-bold text-lg mb-1.5 group-hover:text-primary transition-colors">
+                      {workshop.name}
+                    </h4>
+                    <span className="line-clamp-2">
+                      {[
+                        workshop.address?.street,
+                        workshop.address?.city,
+                        workshop.address?.state,
+                        workshop.address?.postcode,
+                        workshop.address?.country,
+                      ]
+                        .filter(Boolean)
+                        .join(", ")}
+                    </span>
+                  </div>
 
-              {selectedWorkshop?.id === workshop.id && (
-                <Badge className="mt-3" variant="default">Selected</Badge>
-              )}
-            </Card>
-          ))}
+                  {/* Divider */}
+                  <div className="border-t border-border/50" />
+
+                  {/* Rating & Hours */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                      <span className="font-semibold text-sm">
+                        {workshop.rating}
+                      </span>
+                      <span className="text-xs text-muted-foreground ml-1">
+                        rating
+                      </span>
+                    </div>
+
+                    {/* <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Timer className="h-3.5 w-3.5" />
+                      <span>{workshop.hours}</span>
+                    </div> */}
+                  </div>
+
+                  {/* Selected Badge */}
+                  {selectedWorkshop?.id === workshop.id && (
+                    <Badge className="w-full justify-center" variant="default">
+                      ✓ Workshop Selected
+                    </Badge>
+                  )}
+                </div>
+              </Card>
+            ))}
         </div>
       </div>
 
-      {/* Right Column: Service Details & Booking Form */}
+      {/* RIGHT COLUMN */}
       <div className="space-y-6">
         {/* Service Selection */}
         {selectedWorkshop && (
           <Card className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Available Services</h3>
-            <div className="space-y-3">
-              {selectedWorkshop.services.map((service: any, index: number) => (
-                <div
-                  key={index}
-                  className={`p-4 rounded-lg border-2 cursor-pointer transition-all hover:border-primary/50 ${
-                    selectedService?.name === service.name ? 'border-primary bg-primary/5' : 'border-border'
-                  }`}
-                  onClick={() => setSelectedService(service)}
-                >
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-medium">{service.name}</h4>
-                      <div className="flex items-center gap-3 mt-2 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <DollarSign className="h-3 w-3" />
-                          <span>${service.price}</span>
+            <h3 className="text-xl font-bold mb-4">
+              Services at {selectedWorkshop.name}
+            </h3>
+
+            {loadingServices ? (
+              <p className="text-muted-foreground">
+                Loading available services...
+              </p>
+            ) : services.length === 0 ? (
+              <p className="text-muted-foreground">
+                No services have been added to this workshop yet.
+              </p>
+            ) : (
+              <div
+                // 1. Replace space-y-4 with grid classes
+                className="grid gap-4 sm:grid-cols-2 lg:grid-cols-2"
+              >
+                {services.map((service: any) => (
+                  <div
+                    key={service.id}
+                    onClick={() => handleServiceSelect(service)}
+                    // Optional: Add col-span-1 for clarity in the grid
+                    className={`col-span-1 p-4 border rounded-lg cursor-pointer transition-all duration-200 ${
+                      selectedService?.id === service.id
+                        ? "ring-2 ring-primary border-primary bg-primary/5 shadow-md"
+                        : "hover:border-primary/50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      {/* Name and Category Badge */}
+                      <div className="flex items-center gap-3">
+                        {getCategoryIcon(
+                          service.category,
+                          selectedService?.id === service.id
+                            ? "h-6 w-6 text-primary"
+                            : "h-6 w-6 text-muted-foreground"
+                        )}
+                        <div>
+                          <p className="font-semibold text-base">
+                            {service.name}
+                          </p>
+                          <Badge
+                            className={
+                              service.category === "Maintenance"
+                                ? "bg-green-500 text-white hover:bg-green-600"
+                                : service.category === "Diagnostics"
+                                ? "bg-blue-500 text-white hover:bg-blue-600"
+                                : service.category === "Repair"
+                                ? "bg-red-500 text-white hover:bg-red-600"
+                                : "bg-gray-500 text-white hover:bg-gray-600"
+                            }
+                          >
+                            {service.category}
+                          </Badge>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Timer className="h-3 w-3" />
-                          <span>{service.duration}</span>
+                      </div>
+
+                      {/* Details and Price */}
+                      <div className="text-right space-y-1">
+                        <p className="font-bold text-lg text-primary">
+                          RM {service.price.toFixed(2)}
+                        </p>
+                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                          <Timer className="h-4 w-4" />
+                          <span>{formatDuration(service.durationMinutes)}</span>
+                          {selectedService?.id === service.id && (
+                            <CheckCircle className="h-5 w-5 text-primary ml-2" />
+                          )}
                         </div>
                       </div>
                     </div>
-                    {selectedService?.name === service.name && (
-                      <CheckCircle className="h-5 w-5 text-primary" />
-                    )}
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </Card>
         )}
 
         {/* Booking Form */}
-        {selectedService && (
+        {selectedService && selectedWorkshop && (
           <Card className="p-6">
             <h3 className="text-lg font-semibold mb-4">Booking Details</h3>
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Vehicle Selection */}
+              {/* Vehicles */}
               <div className="space-y-2">
-                <Label htmlFor="vehicle">Select Vehicle *</Label>
-                <Select required value={selectedVehicle} onValueChange={setSelectedVehicle}>
-                  <SelectTrigger id="vehicle">
-                    <SelectValue placeholder="Choose a vehicle" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {vehicles.map((vehicle) => (
-                      <SelectItem key={vehicle.id} value={`${vehicle.year} ${vehicle.make} ${vehicle.model} (${vehicle.licensePlate})`}>
-                        {vehicle.year} {vehicle.make} {vehicle.model} ({vehicle.licensePlate})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Select Vehicle *</Label>
+
+                {loadingVehicles ? (
+                  <p className="text-muted-foreground">Loading vehicles...</p>
+                ) : (
+                  <Select
+                    required
+                    value={selectedVehicle?.id || ""}
+                    onValueChange={(vehicleId) => {
+                      const vehicle = vehicles.find((v) => v.id === vehicleId);
+                      setSelectedVehicle(vehicle);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose a vehicle" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {vehicles.map((v) => (
+                        <SelectItem key={v.id} value={v.id}>
+                          {v.year} {v.make} {v.model} ({v.plate})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
 
-              {/* Date Selection */}
+              {/* Date */}
               <div className="space-y-2">
-                <Label htmlFor="date">Preferred Date *</Label>
+                <Label>Preferred Date *</Label>
                 <div className="relative">
                   <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    id="date"
                     type="date"
                     className="pl-10"
                     required
                     value={selectedDate}
                     onChange={(e) => setSelectedDate(e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
+                    min={new Date().toISOString().split("T")[0]}
                   />
                 </div>
               </div>
 
-              {/* Time Selection */}
+              {/* Time */}
               <div className="space-y-2">
-                <Label>Preferred Time *</Label>
-                <div className="grid grid-cols-3 gap-2">
-                  {["8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM", "6:00 PM"].map((time) => (
-                    <Button
-                      key={time}
-                      type="button"
-                      variant={selectedTime === time ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setSelectedTime(time)}
-                      className="w-full"
+                <div className="space-y-2">
+                  <Label>Preferred Time *</Label>
+
+                  {closedMessage ? (
+                    <p className="text-red-600 text-sm">{closedMessage}</p>
+                  ) : (
+                    <div
+                      className="
+                        grid 
+                        grid-cols-[repeat(auto-fill,minmax(100px,1fr))] 
+                        gap-3
+                      "
                     >
-                      {time}
-                    </Button>
-                  ))}
+                      {timeSlots.map((time) => (
+                        <Button
+                          key={time}
+                          type="button"
+                          variant={
+                            selectedTime === time ? "default" : "outline"
+                          }
+                          size="sm"
+                          onClick={() => setSelectedTime(time)}
+                          className="w-full"
+                        >
+                          {time}
+                        </Button>
+                      ))}
+
+                      {timeSlots.length === 0 && (
+                        <p className="text-muted-foreground text-sm col-span-full">
+                          No available time slots.
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Phone */}
               <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number *</Label>
+                <Label>Phone Number *</Label>
                 <Input
-                  id="phone"
                   type="tel"
-                  placeholder="(555) 123-4567"
+                  placeholder="012-3456789"
                   required
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
@@ -274,63 +496,22 @@ export function BookServiceForm() {
 
               {/* Notes */}
               <div className="space-y-2">
-                <Label htmlFor="notes">Additional Notes (Optional)</Label>
+                <Label>Additional Notes (Optional)</Label>
                 <Textarea
-                  id="notes"
-                  placeholder="Any specific concerns or requests..."
+                  placeholder="Any special requests..."
                   rows={3}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                 />
               </div>
 
-              {/* Summary */}
-              <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-                <h4 className="font-semibold text-sm">Booking Summary</h4>
-                <div className="text-sm space-y-1">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Service:</span>
-                    <span className="font-medium">{selectedService.name}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Duration:</span>
-                    <span className="font-medium">{selectedService.duration}</span>
-                  </div>
-                  <div className="flex justify-between text-base font-semibold pt-2 border-t">
-                    <span>Total Price:</span>
-                    <span>${selectedService.price}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Submit Button */}
               <Button type="submit" className="w-full" size="lg">
                 Confirm Booking
               </Button>
             </form>
           </Card>
         )}
-
-        {!selectedWorkshop && (
-          <Card className="p-12 text-center">
-            <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="font-semibold mb-2">Select a Workshop</h3>
-            <p className="text-sm text-muted-foreground">
-              Choose a workshop from the list to view available services
-            </p>
-          </Card>
-        )}
-
-        {selectedWorkshop && !selectedService && (
-          <Card className="p-12 text-center">
-            <DollarSign className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="font-semibold mb-2">Select a Service</h3>
-            <p className="text-sm text-muted-foreground">
-              Choose a service to continue with your booking
-            </p>
-          </Card>
-        )}
       </div>
     </div>
-  )
+  );
 }

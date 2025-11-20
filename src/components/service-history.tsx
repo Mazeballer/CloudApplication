@@ -23,8 +23,6 @@ export function ServiceHistory() {
   const loadHistory = () => {
     const user = getCurrentUser();
     if (!user) return;
-
-    console.log("[v0] Loading service history for user:", user.id);
     const allBookings = JSON.parse(
       localStorage.getItem("autocare_bookings") || "[]"
     );
@@ -39,9 +37,6 @@ export function ServiceHistory() {
     const userInvoices = allInvoices.filter(
       (i: any) => i.customerId === user.id
     );
-
-    console.log("[v0] User bookings:", userBookings.length);
-    console.log("[v0] User invoices:", userInvoices.length);
 
     setBookings(userBookings);
     setInvoices(userInvoices);
@@ -66,7 +61,6 @@ export function ServiceHistory() {
 
     // Listen for storage changes
     const handleStorageChange = () => {
-      console.log("[v0] Storage event detected, reloading service history");
       loadHistory();
     };
 

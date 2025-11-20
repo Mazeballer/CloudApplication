@@ -8,105 +8,97 @@ import { Input } from "@/components/ui/input";
 import { Car, Phone, Mail, Search, Receipt } from "lucide-react";
 import { WorkshopNav } from "@/components/workshop-nav";
 import { useState, useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { useAuth } from "@/lib/auth";
+import { useServiceRecords } from "@/contexts/ServiceRecordContext";
+import { useWorkshops } from "@/contexts/WorkshopContext";
 
-interface Customer {
+interface CustomerSummary {
   id: string;
   name: string;
   email: string;
   phone: string;
-  totalBookings: number;
-  lastService: string;
+
+  active: number;
+  completed: number;
+  cancelled: number;
+
+  lastService: string | null;
+
   invoices: any[];
 }
 
 export default function WorkshopCustomersPage() {
+  const { user } = useAuth();
+  const { currentWorkshop } = useWorkshops();
+  const { recordsByWorkshop, loading } = useServiceRecords();
+
   const [searchQuery, setSearchQuery] = useState("");
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
-    null
-  );
+  const [customers, setCustomers] = useState<CustomerSummary[]>([]);
 
   useEffect(() => {
-    const bookings = JSON.parse(
-      localStorage.getItem("autocare_bookings") || "[]"
-    );
+    if (!currentWorkshop || loading) return;
+
+    const workshopId = currentWorkshop.id;
+    const workshopRecords = recordsByWorkshop[workshopId] || [];
+
+    // Load invoices from localStorage (temporary)
     const invoices = JSON.parse(
       localStorage.getItem("autocare_invoices") || "[]"
     );
 
-    // Group bookings by customer
-    const customerMap = new Map<string, Customer>();
+    // Group by userId
+    const customerMap = new Map<string, CustomerSummary>();
 
-    bookings.forEach((booking: any) => {
-      if (!customerMap.has(booking.customerId)) {
-        customerMap.set(booking.customerId, {
-          id: booking.customerId,
-          name: booking.customerName,
-          email: booking.customerEmail,
-          phone: booking.customerPhone,
-          totalBookings: 0,
-          lastService: booking.date,
+    workshopRecords.forEach((r: any) => {
+      if (!customerMap.has(r.userId)) {
+        customerMap.set(r.userId, {
+          id: r.userId,
+          name: r.userName,
+          email: r.userEmail,
+          phone: r.userPhone,
+
+          active: 0,
+          completed: 0,
+          cancelled: 0,
+
+          lastService: null,
           invoices: [],
         });
       }
 
-      const customer = customerMap.get(booking.customerId)!;
-      customer.totalBookings++;
+      const c = customerMap.get(r.userId)!;
 
-      // Update last service date if this booking is more recent
-      if (new Date(booking.date) > new Date(customer.lastService)) {
-        customer.lastService = booking.date;
+      // Status grouping
+      if (r.status === "Scheduled" || r.status === "Active") c.active++;
+      if (r.status === "Completed") c.completed++;
+      if (r.status === "Cancelled") c.cancelled++;
+
+      // Last service (based on completed dates)
+      if (r.status === "Completed") {
+        if (
+          !c.lastService ||
+          new Date(r.serviceDate) > new Date(c.lastService)
+        ) {
+          c.lastService = r.serviceDate;
+        }
       }
     });
 
-    // Add invoices to customers
-    invoices.forEach((invoice: any) => {
-      const customer = Array.from(customerMap.values()).find(
-        (c) => c.id === invoice.customerId
-      );
-      if (customer) {
-        customer.invoices.push(invoice);
-      }
+    // Attach invoices
+    invoices.forEach((inv: any) => {
+      const c = customerMap.get(inv.customerId);
+      if (c) c.invoices.push(inv);
     });
 
     setCustomers(Array.from(customerMap.values()));
-  }, []);
+  }, [recordsByWorkshop, currentWorkshop, loading]);
 
   const filteredCustomers = customers.filter(
-    (customer) =>
-      customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.phone.includes(searchQuery)
+    (c) =>
+      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.phone.includes(searchQuery)
   );
-
-  const calculateTotalSpent = (customer: Customer) => {
-    const total = customer.invoices.reduce((sum, inv) => {
-      const price = parseFloat(inv.totalPrice.replace("$", ""));
-      return sum + (isNaN(price) ? 0 : price);
-    }, 0);
-    return `$${total.toFixed(2)}`;
-  };
-
-  const getLastServiceText = (date: string) => {
-    const serviceDate = new Date(date);
-    const now = new Date();
-    const diffTime = Math.abs(now.getTime() - serviceDate.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 0) return "Today";
-    if (diffDays === 1) return "Yesterday";
-    if (diffDays < 7) return `${diffDays} days ago`;
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-    return `${Math.floor(diffDays / 30)} months ago`;
-  };
 
   return (
     <ProtectedRoute>
@@ -117,12 +109,12 @@ export default function WorkshopCustomersPage() {
           <div className="mb-8">
             <h1 className="text-3xl font-bold mb-2">Customers</h1>
             <p className="text-muted-foreground">
-              View customers who have booked services with your workshop
+              View customers who have used your workshop services
             </p>
           </div>
 
-          {/* Search */}
-          <div className="flex flex-col md:flex-row gap-4 mb-6">
+          {/* Search Bar */}
+          <div className="flex mb-6">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -134,11 +126,11 @@ export default function WorkshopCustomersPage() {
             </div>
           </div>
 
-          {/* Customers Grid */}
+          {/* No Customers */}
           {filteredCustomers.length === 0 ? (
             <Card className="p-12 text-center">
               <p className="text-muted-foreground">
-                No customers yet. Customers who book services will appear here.
+                No customers yet. They will appear once they book a service.
               </p>
             </Card>
           ) : (
@@ -148,17 +140,16 @@ export default function WorkshopCustomersPage() {
                   key={customer.id}
                   className="p-6 hover:shadow-lg transition-shadow"
                 >
+                  {/* Header */}
                   <div className="flex items-start justify-between mb-4">
                     <div>
                       <h3 className="font-bold text-lg mb-1">
                         {customer.name}
                       </h3>
-                      <Badge
-                        variant={
-                          customer.totalBookings >= 3 ? "default" : "secondary"
-                        }
-                      >
-                        {customer.totalBookings >= 3 ? "Regular" : "New"}
+                      <Badge>
+                        {customer.completed + customer.active >= 3
+                          ? "Regular"
+                          : "New"}
                       </Badge>
                     </div>
                     <div className="bg-teal-500/10 p-3 rounded-lg">
@@ -166,40 +157,50 @@ export default function WorkshopCustomersPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-3 mb-4">
+                  {/* Contact info */}
+                  <div className="space-y-2 mb-4">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Mail className="h-4 w-4 shrink-0" />
-                      <span className="truncate">{customer.email}</span>
+                      <Mail className="h-4 w-4" />
+                      {customer.email}
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Phone className="h-4 w-4 shrink-0" />
-                      <span>{customer.phone}</span>
+                      <Phone className="h-4 w-4" />
+                      {customer.phone}
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4 mb-4 text-center">
-                    <div>
-                      <p className="text-2xl font-bold text-teal-600">
-                        {customer.totalBookings}
-                      </p>
-                      <p className="text-xs text-muted-foreground">Bookings</p>
+                  {/* SERVICE SUMMARY */}
+                  <div className="border-t pt-4 mb-4 text-sm">
+                    <div className="flex justify-between mb-2">
+                      <span className="font-semibold">Active</span>
+                      <span>{customer.active}</span>
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold">
-                        {getLastServiceText(customer.lastService)}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Last Visit
-                      </p>
+                    <div className="flex justify-between mb-2">
+                      <span className="font-semibold">Completed</span>
+                      <span>{customer.completed}</span>
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold">
-                        {calculateTotalSpent(customer)}
-                      </p>
-                      <p className="text-xs text-muted-foreground">Total</p>
+                    <div className="flex justify-between mb-2">
+                      <span className="font-semibold">Cancelled</span>
+                      <span>{customer.cancelled}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="font-semibold">Last Service</span>
+                      <span>
+                        {customer.lastService
+                          ? new Date(customer.lastService).toLocaleDateString(
+                              "en-US",
+                              {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              }
+                            )
+                          : "—"}
+                      </span>
                     </div>
                   </div>
 
+                  {/* Buttons */}
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
@@ -209,73 +210,6 @@ export default function WorkshopCustomersPage() {
                     >
                       <a href={`mailto:${customer.email}`}>Contact</a>
                     </Button>
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button
-                          size="sm"
-                          className="flex-1"
-                          onClick={() => setSelectedCustomer(customer)}
-                        >
-                          <Receipt className="h-4 w-4 mr-2" />
-                          Invoices
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-2xl">
-                        <DialogHeader>
-                          <DialogTitle>
-                            Invoices for {customer.name}
-                          </DialogTitle>
-                          <DialogDescription>
-                            View all invoices sent to this customer
-                          </DialogDescription>
-                        </DialogHeader>
-
-                        <div className="space-y-4 py-4 max-h-96 overflow-y-auto">
-                          {customer.invoices.length === 0 ? (
-                            <p className="text-center text-muted-foreground py-8">
-                              No invoices sent yet
-                            </p>
-                          ) : (
-                            customer.invoices.map((invoice) => (
-                              <Card key={invoice.id} className="p-4">
-                                <div className="flex justify-between items-start mb-3">
-                                  <div>
-                                    <p className="font-semibold text-lg">
-                                      {invoice.totalPrice}
-                                    </p>
-                                    <p className="text-sm text-muted-foreground">
-                                      {new Date(
-                                        invoice.sentAt
-                                      ).toLocaleDateString()}
-                                    </p>
-                                  </div>
-                                  <Badge>Sent</Badge>
-                                </div>
-
-                                <div className="space-y-2 text-sm">
-                                  <div>
-                                    <span className="font-medium">Labor:</span>{" "}
-                                    {invoice.labor}
-                                  </div>
-                                  <div>
-                                    <span className="font-medium">Parts:</span>
-                                    <p className="text-muted-foreground">
-                                      {invoice.parts}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <span className="font-medium">Notes:</span>
-                                    <p className="text-muted-foreground">
-                                      {invoice.notes}
-                                    </p>
-                                  </div>
-                                </div>
-                              </Card>
-                            ))
-                          )}
-                        </div>
-                      </DialogContent>
-                    </Dialog>
                   </div>
                 </Card>
               ))}

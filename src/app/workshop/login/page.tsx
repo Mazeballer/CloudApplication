@@ -38,7 +38,7 @@ export default function WorkshopLoginPage() {
       {/* Right Side - Login Form */}
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
-          <LoginForm type="workshop" />
+          <LoginForm type="Workshop" />
         </div>
       </div>
     </div>

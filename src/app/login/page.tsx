@@ -37,7 +37,7 @@ export default function LoginPage() {
       {/* Right Side - Login Form */}
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
-          <LoginForm type="driver" />
+          <LoginForm type="Driver" />
         </div>
       </div>
     </div>

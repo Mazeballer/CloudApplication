@@ -12,6 +12,8 @@ export async function addVehicle(vehicle: any, email: string) {
             mileage: vehicle.mileage,
             image: vehicle.image,
             email: email,
+            color: vehicle.color,
+            purchaseDate: vehicle.purchaseDate,
         }),
     });
 

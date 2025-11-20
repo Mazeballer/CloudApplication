@@ -31,6 +31,8 @@ interface AddVehicleDialogProps {
     mileage: number;
     image: string;
     email: string;
+    color: string;
+    purchaseDate: string;
   }) => void;
 }
 
@@ -65,6 +67,8 @@ export function AddVehicleDialog({ onAddVehicle }: AddVehicleDialogProps) {
   const [mileage, setMileage] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [color, setColor] = useState("");
+  const [purchaseDate, setPurchaseDate] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,6 +101,8 @@ export function AddVehicleDialog({ onAddVehicle }: AddVehicleDialogProps) {
       mileage: parseInt(mileage),
       image, // ★ send the URL, not the file
       email: userEmail,
+      color,
+      purchaseDate,
     };
 
     // 3️⃣ Send to your C# API
@@ -146,6 +152,7 @@ export function AddVehicleDialog({ onAddVehicle }: AddVehicleDialogProps) {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Manufacturer */}
             <div className="space-y-2">
               <Label>Manufacturer *</Label>
               <Select value={make} onValueChange={setMake} required>
@@ -162,6 +169,7 @@ export function AddVehicleDialog({ onAddVehicle }: AddVehicleDialogProps) {
               </Select>
             </div>
 
+            {/* Model */}
             <div className="space-y-2">
               <Label>Model *</Label>
               <Input
@@ -172,6 +180,7 @@ export function AddVehicleDialog({ onAddVehicle }: AddVehicleDialogProps) {
               />
             </div>
 
+            {/* Year */}
             <div className="space-y-2">
               <Label>Year *</Label>
               <Select value={year} onValueChange={setYear} required>
@@ -188,6 +197,7 @@ export function AddVehicleDialog({ onAddVehicle }: AddVehicleDialogProps) {
               </Select>
             </div>
 
+            {/* License Plate */}
             <div className="space-y-2">
               <Label>License Plate *</Label>
               <Input
@@ -198,6 +208,7 @@ export function AddVehicleDialog({ onAddVehicle }: AddVehicleDialogProps) {
               />
             </div>
 
+            {/* Mileage */}
             <div className="space-y-2">
               <Label>Mileage (km) *</Label>
               <Input
@@ -208,8 +219,31 @@ export function AddVehicleDialog({ onAddVehicle }: AddVehicleDialogProps) {
                 required
               />
             </div>
+
+            {/* Color */}
+            <div className="space-y-2">
+              <Label>Color *</Label>
+              <Input
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+                placeholder="e.g., White / Black / Silver"
+                required
+              />
+            </div>
+
+            {/* Purchase Date */}
+            <div className="space-y-2">
+              <Label>Purchase Date *</Label>
+              <Input
+                type="date"
+                value={purchaseDate}
+                onChange={(e) => setPurchaseDate(e.target.value)}
+                required
+              />
+            </div>
           </div>
 
+          {/* Image Upload */}
           <div className="space-y-2">
             <Label>Vehicle Image</Label>
             <Input type="file" accept="image/*" onChange={handleImageChange} />
@@ -223,6 +257,7 @@ export function AddVehicleDialog({ onAddVehicle }: AddVehicleDialogProps) {
             )}
           </div>
 
+          {/* Buttons */}
           <div className="flex gap-3 pt-4">
             <Button
               type="button"

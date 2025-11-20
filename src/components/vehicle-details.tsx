@@ -14,11 +14,17 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useVehicles } from "@/contexts/VehiclesContext";
+import { useEffect, useState } from "react";
 
 export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
   const { vehicles } = useVehicles();
+  const [isMounted, setIsMounted] = useState(false);
 
-  // 1️⃣ Get actual vehicle from DB/context
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Get actual vehicle from DB/context
   const vehicle = vehicles.find((v) => v.id === vehicleId);
 
   if (!vehicle) {
@@ -32,9 +38,6 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
     );
   }
 
-  // 2️⃣ Fake data for fields NOT in database yet
-  const fakeColor = "Silver";
-  const fakePurchaseDate = "Jan 15, 2023";
   const fakeNextServiceMileage = 50000;
   const fakeHealthScore = 85;
 
@@ -57,9 +60,20 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
     { service: "Tire Rotation", date: "Aug 20, 2024", cost: "$70.00" },
   ];
 
-  // 3️⃣ Service progress bar calculation
-  const currentMileageNumber = parseInt(vehicle.mileage.replace(" km", ""));
+  // Service progress bar calculation
+  const currentMileageNumber =
+    parseInt(vehicle.mileage.replace(/[^\d]/g, "")) || 0;
   const serviceProgress = (currentMileageNumber / fakeNextServiceMileage) * 100;
+  const kmUntilService = Math.max(
+    fakeNextServiceMileage - currentMileageNumber,
+    0
+  );
+
+  // Format numbers safely (only on client)
+  const formatNumber = (num: number) => {
+    if (!isMounted) return num.toString();
+    return num.toLocaleString();
+  };
 
   return (
     <div className="space-y-6">
@@ -95,13 +109,13 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
             <div className="grid sm:grid-cols-2 gap-4 mb-6">
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Color</p>
-                <p className="font-medium">{fakeColor}</p>
+                <p className="font-medium">{vehicle.color}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground mb-1">
                   Purchase Date
                 </p>
-                <p className="font-medium">{fakePurchaseDate}</p>
+                <p className="font-medium">{vehicle.purchaseDate}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground mb-1">
@@ -113,8 +127,8 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
                 <p className="text-sm text-muted-foreground mb-1">
                   Next Service Mileage
                 </p>
-                <p className="font-medium">
-                  {fakeNextServiceMileage.toLocaleString()} km
+                <p className="font-medium" suppressHydrationWarning>
+                  {formatNumber(fakeNextServiceMileage)} km
                 </p>
               </div>
             </div>
@@ -248,18 +262,19 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
             <span className="text-muted-foreground">
               Current: {vehicle.mileage}
             </span>
-            <span className="text-muted-foreground">
-              Next service: {fakeNextServiceMileage.toLocaleString()} km
+            <span className="text-muted-foreground" suppressHydrationWarning>
+              Next service: {formatNumber(fakeNextServiceMileage)} km
             </span>
           </div>
 
           <Progress value={Math.min(serviceProgress, 100)} className="h-3" />
 
-          <p className="text-sm text-muted-foreground text-center">
-            {fakeNextServiceMileage - currentMileageNumber > 0
-              ? `${(
-                  fakeNextServiceMileage - currentMileageNumber
-                ).toLocaleString()} km until next service`
+          <p
+            className="text-sm text-muted-foreground text-center"
+            suppressHydrationWarning
+          >
+            {kmUntilService > 0
+              ? `${formatNumber(kmUntilService)} km until next service`
               : "Service overdue"}
           </p>
         </div>

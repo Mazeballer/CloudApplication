@@ -1,7 +1,6 @@
 export function initializeDemoData() {
   const demoUserId = 'demo-driver-1'
   
-  console.log('[v0] Initializing demo data for user:', demoUserId)
 
   const usersData = localStorage.getItem('autocare_users')
   
@@ -9,7 +8,7 @@ export function initializeDemoData() {
     const users = JSON.parse(usersData)
     const demoUser = users.find((u: any) => u.email === 'demo@autocare.com')
     if (demoUser) {
-      console.log('[v0] Found demo user with ID:', demoUser.id)
+      
     }
   }
 
@@ -280,11 +279,6 @@ export function initializeDemoData() {
   localStorage.setItem('autocare_invoices', JSON.stringify(demoInvoices))
   localStorage.setItem('autocare_workshops', JSON.stringify(demoWorkshops))
   
-  console.log('[v0] Demo data initialized successfully')
-  console.log('[v0] Vehicles:', demoVehicles.length)
-  console.log('[v0] Bookings:', demoBookings.length)
-  console.log('[v0] Invoices:', demoInvoices.length)
-  console.log('[v0] Workshops:', demoWorkshops.length)
 }
 
 export function resetDemoData() {

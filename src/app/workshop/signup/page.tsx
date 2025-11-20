@@ -25,8 +25,24 @@ export default function WorkshopSignupPage() {
     phone: "",
     password: "",
     confirmPassword: "",
-    address: "",
-    hours: "",
+    address: {
+      street: "",
+      city: "",
+      state: "",
+      postcode: "",
+      country: "",
+    },
+    operatingHours: {
+      hoursByDay: {
+        Monday: { isOpen: false, startTime: "", endTime: "" },
+        Tuesday: { isOpen: false, startTime: "", endTime: "" },
+        Wednesday: { isOpen: false, startTime: "", endTime: "" },
+        Thursday: { isOpen: false, startTime: "", endTime: "" },
+        Friday: { isOpen: false, startTime: "", endTime: "" },
+        Saturday: { isOpen: false, startTime: "", endTime: "" },
+        Sunday: { isOpen: false, startTime: "", endTime: "" },
+      },
+    },
   });
 
   const [showPassword, setShowPassword] = useState(false);
@@ -52,6 +68,15 @@ export default function WorkshopSignupPage() {
     setError("");
     setIsLoading(true);
 
+    const hoursArray = Object.entries(formData.operatingHours.hoursByDay).map(
+      ([day, info]) => ({
+        day,
+        isOpen: info.isOpen,
+        startTime: info.startTime,
+        endTime: info.endTime,
+      })
+    );
+
     const result = await registerWorkshop(
       {
         email: formData.email,
@@ -59,7 +84,9 @@ export default function WorkshopSignupPage() {
         workshopName: formData.workshopName,
         ownerName: formData.ownerName,
         address: formData.address,
-        hours: formData.hours,
+        operatingHours: {
+          hoursByDay: hoursArray,
+        },
       },
       formData.password
     );
@@ -75,7 +102,7 @@ export default function WorkshopSignupPage() {
   return (
     <div className="min-h-screen flex">
       {/* LEFT BRAND SECTION */}
-      <div className="hidden lg:flex lg:w-1/2 bg-linear-to-br from-amber-600 to-amber-800 p-12 items-center justify-center">
+      <div className="hidden lg:flex lg:w-1/3 bg-linear-to-br from-amber-600 to-amber-800 p-12 items-center justify-center">
         <div className="max-w-md text-white">
           <div className="flex items-center gap-3 mb-8">
             <div className="bg-white p-3 rounded-xl">
@@ -94,13 +121,13 @@ export default function WorkshopSignupPage() {
       </div>
 
       {/* MAIN FORM */}
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-md">
-          <Card className="p-8">
-            <h2 className="text-3xl font-bold mb-4">Register Your Workshop</h2>
+      <div className="flex-1 flex items-center justify-center p-4 lg:p-6">
+        <div className="w-full max-w-2xl">
+          <Card className="p-8 min-h-[90vh] overflow-y-auto">
+            <h2 className="text-3xl font-bold mb-2">Register Your Workshop</h2>
 
             {/* Step Indicator */}
-            <div className="flex items-center mb-6">
+            <div className="flex items-center mb-4 gap-2">
               <div
                 className={`flex-1 h-1 rounded ${
                   step >= 1 ? "bg-amber-600" : "bg-muted"
@@ -109,6 +136,11 @@ export default function WorkshopSignupPage() {
               <div
                 className={`flex-1 h-1 rounded ${
                   step >= 2 ? "bg-amber-600" : "bg-muted"
+                }`}
+              />
+              <div
+                className={`flex-1 h-1 rounded ${
+                  step >= 3 ? "bg-amber-600" : "bg-muted"
                 }`}
               />
             </div>
@@ -165,46 +197,6 @@ export default function WorkshopSignupPage() {
                     />
                   </div>
 
-                  {error && (
-                    <Alert variant="destructive">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>{error}</AlertDescription>
-                    </Alert>
-                  )}
-
-                  <Button type="button" className="w-full" onClick={goNextStep}>
-                    Next
-                  </Button>
-                </>
-              )}
-
-              {/* STEP 2 */}
-              {step === 2 && (
-                <>
-                  <div className="space-y-2">
-                    <Label>Address</Label>
-                    <Textarea
-                      rows={3}
-                      value={formData.address}
-                      onChange={(e) =>
-                        setFormData({ ...formData, address: e.target.value })
-                      }
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Operating Hours</Label>
-                    <Input
-                      placeholder="Mon–Fri 9am–6pm, Sat 9am–3pm"
-                      value={formData.hours}
-                      onChange={(e) =>
-                        setFormData({ ...formData, hours: e.target.value })
-                      }
-                      required
-                    />
-                  </div>
-
                   <div className="space-y-2">
                     <Label>Password</Label>
                     <div className="relative">
@@ -252,12 +244,240 @@ export default function WorkshopSignupPage() {
                     </Alert>
                   )}
 
+                  <Button type="button" className="w-full" onClick={goNextStep}>
+                    Next
+                  </Button>
+                </>
+              )}
+
+              {/* STEP 2 */}
+              {step === 2 && (
+                <>
+                  <div className="space-y-2">
+                    <Label className="font-semibold mb-4">Address</Label>
+
+                    <div className="space-y-4">
+                      <div>
+                        <Label className="mb-2">Street</Label>
+                        <Input
+                          value={formData.address.street}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              address: {
+                                ...formData.address,
+                                street: e.target.value,
+                              },
+                            })
+                          }
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <Label className="mb-2">City</Label>
+                        <Input
+                          value={formData.address.city}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              address: {
+                                ...formData.address,
+                                city: e.target.value,
+                              },
+                            })
+                          }
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <Label className="mb-2">State</Label>
+                        <Input
+                          value={formData.address.state}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              address: {
+                                ...formData.address,
+                                state: e.target.value,
+                              },
+                            })
+                          }
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <Label className="mb-2">Postcode</Label>
+                        <Input
+                          value={formData.address.postcode}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              address: {
+                                ...formData.address,
+                                postcode: e.target.value,
+                              },
+                            })
+                          }
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <Label className="mb-2">Country</Label>
+                        <Input
+                          value={formData.address.country}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              address: {
+                                ...formData.address,
+                                country: e.target.value,
+                              },
+                            })
+                          }
+                          required
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {error && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                  )}
+
                   <div className="flex gap-3">
                     <Button
                       type="button"
                       variant="outline"
                       className="w-1/2"
                       onClick={() => setStep(1)}
+                    >
+                      Back
+                    </Button>
+                    <Button
+                      type="button"
+                      className="w-1/2"
+                      onClick={() => setStep(3)}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </>
+              )}
+
+              {step === 3 && (
+                <>
+                  <div className="space-y-4">
+                    <Label className="font-semibold">Operating Hours</Label>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {Object.entries(formData.operatingHours.hoursByDay).map(
+                        ([day, info]) => (
+                          <div
+                            key={day}
+                            className="border rounded-lg p-4 bg-muted/40 space-y-3 shadow-sm"
+                          >
+                            {/* Header row */}
+                            <div className="flex items-center justify-between">
+                              <span className="font-semibold">{day}</span>
+
+                              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={info.isOpen}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      operatingHours: {
+                                        hoursByDay: {
+                                          ...formData.operatingHours.hoursByDay,
+                                          [day]: {
+                                            ...info,
+                                            isOpen: e.target.checked,
+                                          },
+                                        },
+                                      },
+                                    })
+                                  }
+                                />
+                                Open
+                              </label>
+                            </div>
+
+                            {/* Time inputs (only when open) */}
+                            {info.isOpen && (
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <Label className="text-xs text-muted-foreground">
+                                    Start
+                                  </Label>
+                                  <Input
+                                    type="time"
+                                    className="text-sm"
+                                    value={info.startTime}
+                                    onChange={(e) =>
+                                      setFormData({
+                                        ...formData,
+                                        operatingHours: {
+                                          hoursByDay: {
+                                            ...formData.operatingHours
+                                              .hoursByDay,
+                                            [day]: {
+                                              ...info,
+                                              startTime: e.target.value,
+                                            },
+                                          },
+                                        },
+                                      })
+                                    }
+                                  />
+                                </div>
+
+                                <div>
+                                  <Label className="text-xs text-muted-foreground">
+                                    End
+                                  </Label>
+                                  <Input
+                                    type="time"
+                                    className="text-sm"
+                                    value={info.endTime}
+                                    onChange={(e) =>
+                                      setFormData({
+                                        ...formData,
+                                        operatingHours: {
+                                          hoursByDay: {
+                                            ...formData.operatingHours
+                                              .hoursByDay,
+                                            [day]: {
+                                              ...info,
+                                              endTime: e.target.value,
+                                            },
+                                          },
+                                        },
+                                      })
+                                    }
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-1/2"
+                      onClick={() => setStep(2)}
                     >
                       Back
                     </Button>

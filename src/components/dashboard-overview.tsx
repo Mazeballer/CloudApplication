@@ -3,12 +3,14 @@
 import { Card } from "@/components/ui/card";
 import { Car, Wrench, AlertTriangle, CheckCircle } from "lucide-react";
 import { useState, useEffect } from "react";
-import { getCurrentUser } from "@/lib/auth";
+import { useAuth } from "@/lib/auth";
 import { useVehicles } from "@/contexts/VehiclesContext";
+import { useServiceRecords } from "@/contexts/ServiceRecordContext";
 
 export function DashboardOverview() {
+  const { user } = useAuth();
   const { vehicles } = useVehicles();
-  const [mounted, setMounted] = useState(false); // ⭐ Add mounted state
+  const { recordsByUser, loading } = useServiceRecords();
 
   const [stats, setStats] = useState({
     totalVehicles: 0,
@@ -17,55 +19,31 @@ export function DashboardOverview() {
     servicesCompleted: 0,
   });
 
-  const loadStats = () => {
-    const user = getCurrentUser();
-    if (!user) return;
+  useEffect(() => {
+    if (!user || loading) return;
 
-    console.log("[v0] Loading stats for user:", user.id);
-    const bookings = JSON.parse(
-      localStorage.getItem("autocare_bookings") || "[]"
-    );
-    const invoices = JSON.parse(
-      localStorage.getItem("autocare_invoices") || "[]"
-    );
-    const userBookings = bookings.filter((b: any) => b.customerId === user.id);
-    const userInvoices = invoices.filter((i: any) => i.customerId === user.id);
+    const userRecords = recordsByUser[user.id] || [];
 
-    const activeBookings = userBookings.filter((b: any) => {
-      const hasInvoice = userInvoices.some(
-        (inv: any) => inv.bookingId === b.id
-      );
-      return !hasInvoice;
-    }).length;
+    // STATUS LOGIC
+    const servicesDue = userRecords.filter(
+      (r) => r.status === "Scheduled"
+    ).length;
+
+    const servicesCompleted = userRecords.filter(
+      (r) => r.status === "Completed"
+    ).length;
+
+    const activeBookings = userRecords.filter(
+      (r) => r.status === "Active"
+    ).length;
 
     setStats({
       totalVehicles: vehicles.length,
-      servicesDue: activeBookings,
-      activeBookings: activeBookings,
-      servicesCompleted: userInvoices.length,
+      servicesDue,
+      activeBookings,
+      servicesCompleted,
     });
-  };
-
-  useEffect(() => {
-    setMounted(true); // ⭐ Set mounted to true after first render
-  }, []);
-
-  useEffect(() => {
-    if (!mounted) return; // ⭐ Don't load stats until mounted
-    loadStats();
-  }, [vehicles, mounted]);
-
-  useEffect(() => {
-    if (!mounted) return; // ⭐ Don't add listener until mounted
-
-    const handleStorageChange = () => {
-      console.log("[v0] Storage event detected, reloading stats");
-      loadStats();
-    };
-
-    window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
-  }, [mounted]);
+  }, [vehicles, user, recordsByUser, loading]);
 
   const statItems = [
     {
@@ -81,7 +59,7 @@ export function DashboardOverview() {
       color: "text-amber-500",
     },
     {
-      label: "Active Bookings",
+      label: "Active / Upcoming",
       value: stats.activeBookings.toString(),
       icon: AlertTriangle,
       color: "text-red-500",

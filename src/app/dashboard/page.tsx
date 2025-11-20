@@ -5,8 +5,8 @@ import { ProtectedRoute } from "@/components/protected-route";
 import { DashboardNav } from "@/components/dashboard-nav";
 import { DashboardOverview } from "@/components/dashboard-overview";
 import { VehiclesList } from "@/components/vehicles-list";
-import { UpcomingMaintenance } from "@/components/upcoming-maintenance";
-// import { DemoDataInitializer } from "@/components/demo-data-initializer";
+import { ActiveService } from "@/components/active-service";
+import { UpcomingService } from "@/components/upcoming-service";
 
 export default function DashboardPage() {
   const { isAuth, user, isLoading } = useAuth();
@@ -41,14 +41,13 @@ export default function DashboardPage() {
 
           {/* Two Column Layout */}
           <div className="grid lg:grid-cols-3 gap-6 mt-8">
-            {/* Vehicles List - Takes 2 columns */}
             <div className="lg:col-span-2">
               <VehiclesList />
             </div>
 
-            {/* Upcoming Maintenance - Takes 1 column */}
             <div>
-              <UpcomingMaintenance />
+              <UpcomingService />
+              <ActiveService /> {/* 👈 New Section */}
             </div>
           </div>
         </main>
