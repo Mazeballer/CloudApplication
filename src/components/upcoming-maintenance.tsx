@@ -45,7 +45,7 @@ export function UpcomingMaintenance() {
           date:
             daysUntil < 0
               ? "Overdue"
-              : new Date(booking.date).toLocaleDateString("en-US", {
+              : new Date(booking.date).toLocaleDateString("en-GB", {
                   month: "short",
                   day: "numeric",
                   year: "numeric",

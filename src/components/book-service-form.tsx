@@ -147,7 +147,8 @@ export function BookServiceForm() {
     const user = getCurrentUser();
 
     const payload = {
-      vehicleId: selectedVehicle.id, // make sure you pass ID not string
+      userId: user?.id,
+      vehicleId: selectedVehicle.id,
       workshopProfileId: selectedWorkshop.id,
       serviceId: selectedService.id,
       serviceDate: new Date(
@@ -159,7 +160,7 @@ export function BookServiceForm() {
       serviceName: selectedService.name,
       servicePrice: selectedService.price,
 
-      status: "Scheduled",
+      status: "Request",
     };
 
     await createServiceBooking(payload);
@@ -174,7 +175,7 @@ export function BookServiceForm() {
     if (!selectedDate || !selectedWorkshop) return;
 
     const d = new Date(selectedDate);
-    const dayName = d.toLocaleDateString("en-US", { weekday: "long" });
+    const dayName = d.toLocaleDateString("en-GB", { weekday: "long" });
 
     const dayHours = selectedWorkshop.hours?.hoursByDay?.find(
       (d: any) => d.day === dayName

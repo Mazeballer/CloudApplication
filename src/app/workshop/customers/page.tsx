@@ -188,7 +188,7 @@ export default function WorkshopCustomersPage() {
                       <span>
                         {customer.lastService
                           ? new Date(customer.lastService).toLocaleDateString(
-                              "en-US",
+                              "en-GB",
                               {
                                 month: "short",
                                 day: "numeric",

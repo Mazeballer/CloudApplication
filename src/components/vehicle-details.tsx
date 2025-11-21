@@ -15,17 +15,63 @@ import {
 import Link from "next/link";
 import { useVehicles } from "@/contexts/VehiclesContext";
 import { useEffect, useState } from "react";
+import { getCurrentUser } from "@/lib/auth";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+type RawRecord = {
+  id: string;
+  vehicleId: string;
+  serviceName: string;
+  workshopName: string;
+  status: string; // Scheduled, Completed, etc.
+  serviceDate: string;
+  serviceMileage: number;
+  remarks?: string;
+};
 
 export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
   const { vehicles } = useVehicles();
-  const [isMounted, setIsMounted] = useState(false);
+  const [records, setRecords] = useState<RawRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const vehicle = vehicles.find((v) => v.id === vehicleId);
 
   useEffect(() => {
-    setIsMounted(true);
-  }, []);
+    const loadData = async () => {
+      if (!vehicle) return;
 
-  // Get actual vehicle from DB/context
-  const vehicle = vehicles.find((v) => v.id === vehicleId);
+      const user = getCurrentUser();
+      if (!user) return;
+
+      try {
+        const res = await fetch(`${API_URL}/api/ServiceRecord/all`, {
+          credentials: "include",
+        });
+
+        if (!res.ok) {
+          console.error("Failed to load service records:", res.status);
+          return;
+        }
+
+        const data = await res.json();
+        const userRecords: RawRecord[] = data.byUser[user.id] ?? [];
+
+        // Only take records for THIS vehicle
+        const vehicleRecords = userRecords.filter(
+          (r) => r.vehicleId === vehicleId
+        );
+
+        setRecords(vehicleRecords);
+      } catch (err) {
+        console.error("VehicleDetails fetch error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [vehicleId, vehicle]);
 
   if (!vehicle) {
     return (
@@ -38,42 +84,56 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
     );
   }
 
-  const fakeNextServiceMileage = 50000;
-  const fakeHealthScore = 85;
+  // ------------------------------------------------------------------
+  // REAL DATA CALCULATIONS
+  // ------------------------------------------------------------------
 
-  const fakeAlerts = [
-    {
-      type: "warning",
-      message: "Oil change due in 800 km",
-      date: "Due next week",
-    },
-  ];
+  const currentMileage = parseInt(vehicle.mileage.replace(/[^\d]/g, "")) || 0;
 
-  const fakeUpcomingMaintenance = [
-    { service: "Oil Change", dueIn: "800 km", priority: "high" },
-    { service: "Tire Rotation", dueIn: "3,200 km", priority: "medium" },
-    { service: "Air Filter", dueIn: "5,000 km", priority: "low" },
-  ];
+  // Completed services for this vehicle
+  const completed = records
+    .filter((r) => r.status === "Completed")
+    .sort(
+      (a, b) =>
+        new Date(b.serviceDate).getTime() - new Date(a.serviceDate).getTime()
+    );
 
-  const fakeRecentServices = [
-    { service: "Brake Inspection", date: "Dec 15, 2024", cost: "$120.00" },
-    { service: "Tire Rotation", date: "Aug 20, 2024", cost: "$70.00" },
-  ];
+  // Scheduled (upcoming maintenance)
+  const scheduled = records.filter((r) => r.status === "Scheduled");
 
-  // Service progress bar calculation
-  const currentMileageNumber =
-    parseInt(vehicle.mileage.replace(/[^\d]/g, "")) || 0;
-  const serviceProgress = (currentMileageNumber / fakeNextServiceMileage) * 100;
-  const kmUntilService = Math.max(
-    fakeNextServiceMileage - currentMileageNumber,
-    0
+  // Determine last completed service mileage
+  const lastServiceMileage =
+    completed.length > 0 ? completed[0].serviceMileage : currentMileage;
+
+  // Assume service interval = 5000 km (you can store this in DB later)
+  const SERVICE_INTERVAL = 5000;
+  const nextServiceAt = lastServiceMileage + SERVICE_INTERVAL;
+  const kmRemaining = Math.max(nextServiceAt - currentMileage, 0);
+
+  // Dynamic alert
+  const alerts =
+    kmRemaining < 1000
+      ? [
+          {
+            type: "warning",
+            message: `Service due in ${kmRemaining} km`,
+            date: "Soon",
+          },
+        ]
+      : [];
+
+  // Recent services → completed list
+  const recentServices = completed.slice(0, 3);
+
+  // Service progress bar
+  const progress = Math.min(
+    ((currentMileage - lastServiceMileage) / SERVICE_INTERVAL) * 100,
+    100
   );
 
-  // Format numbers safely (only on client)
-  const formatNumber = (num: number) => {
-    if (!isMounted) return num.toString();
-    return num.toLocaleString();
-  };
+  const formatNumber = (n: number) => n.toLocaleString();
+
+  // ------------------------------------------------------------------
 
   return (
     <div className="space-y-6">
@@ -90,7 +150,6 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
         <div className="flex flex-col lg:flex-row gap-6">
           <img
             src={vehicle.image || "/placeholder.svg"}
-            alt={`${vehicle.make} ${vehicle.model}`}
             className="w-full lg:w-80 h-56 object-cover rounded-lg"
           />
 
@@ -103,7 +162,9 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
                 <p className="text-muted-foreground">{vehicle.plate}</p>
               </div>
 
-              <Button>Book Service</Button>
+              <Button asChild>
+                <Link href="/dashboard/book">Book Service</Link>
+              </Button>
             </div>
 
             <div className="grid sm:grid-cols-2 gap-4 mb-6">
@@ -127,27 +188,26 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
                 <p className="text-sm text-muted-foreground mb-1">
                   Next Service Mileage
                 </p>
-                <p className="font-medium" suppressHydrationWarning>
-                  {formatNumber(fakeNextServiceMileage)} km
-                </p>
+                <p className="font-medium">{formatNumber(nextServiceAt)} km</p>
               </div>
             </div>
 
+            {/* Vehicle Health */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium">Vehicle Health Score</p>
+                <p className="text-sm font-medium">Service Interval Progress</p>
                 <p className="text-2xl font-bold text-primary">
-                  {fakeHealthScore}%
+                  {progress.toFixed(0)}%
                 </p>
               </div>
-              <Progress value={fakeHealthScore} className="h-3" />
+              <Progress value={progress} className="h-3" />
             </div>
           </div>
         </div>
       </Card>
 
       {/* Alerts */}
-      {fakeAlerts.length > 0 && (
+      {alerts.length > 0 && (
         <Card className="p-6">
           <div className="flex items-center gap-2 mb-4">
             <AlertTriangle className="h-5 w-5 text-amber-500" />
@@ -155,36 +215,17 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
           </div>
 
           <div className="space-y-3">
-            {fakeAlerts.map((alert, index) => (
-              <Card
-                key={index}
-                className={`p-4 ${
-                  alert.type === "critical"
-                    ? "border-red-500"
-                    : "border-amber-500"
-                }`}
-              >
+            {alerts.map((alert, index) => (
+              <Card key={index} className="p-4 border-amber-500">
                 <div className="flex items-start gap-3">
-                  <Bell
-                    className={`h-5 w-5 ${
-                      alert.type === "critical"
-                        ? "text-red-500"
-                        : "text-amber-500"
-                    } mt-0.5`}
-                  />
+                  <Bell className="h-5 w-5 text-amber-500 mt-0.5" />
                   <div className="flex-1">
                     <p className="font-semibold mb-1">{alert.message}</p>
                     <p className="text-sm text-muted-foreground">
                       {alert.date}
                     </p>
                   </div>
-                  <Badge
-                    variant={
-                      alert.type === "critical" ? "destructive" : "secondary"
-                    }
-                  >
-                    {alert.type}
-                  </Badge>
+                  <Badge variant="secondary">{alert.type}</Badge>
                 </div>
               </Card>
             ))}
@@ -200,29 +241,23 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
             <h2 className="text-xl font-bold">Upcoming Maintenance</h2>
           </div>
 
-          <div className="space-y-3">
-            {fakeUpcomingMaintenance.map((item, index) => (
-              <Card key={index} className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-semibold">{item.service}</h3>
-                  <Badge
-                    variant={
-                      item.priority === "critical"
-                        ? "destructive"
-                        : item.priority === "high"
-                        ? "secondary"
-                        : "outline"
-                    }
-                  >
-                    {item.priority}
-                  </Badge>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Due in: {item.dueIn}
-                </p>
-              </Card>
-            ))}
-          </div>
+          {scheduled.length === 0 ? (
+            <p className="text-muted-foreground">No upcoming services.</p>
+          ) : (
+            <div className="space-y-3">
+              {scheduled.map((item, index) => (
+                <Card key={index} className="p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-semibold">{item.serviceName}</h3>
+                    <Badge variant="secondary">Scheduled</Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Date: {new Date(item.serviceDate).toLocaleDateString()}
+                  </p>
+                </Card>
+              ))}
+            </div>
+          )}
         </Card>
 
         {/* Recent Services */}
@@ -232,51 +267,42 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
             <h2 className="text-xl font-bold">Recent Services</h2>
           </div>
 
-          <div className="space-y-3">
-            {fakeRecentServices.map((service, index) => (
-              <Card key={index} className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-semibold">{service.service}</h3>
-                  <p className="font-bold text-primary">{service.cost}</p>
-                </div>
-                <p className="text-sm text-muted-foreground">{service.date}</p>
-              </Card>
-            ))}
+          {recentServices.length === 0 ? (
+            <p className="text-muted-foreground">No completed services.</p>
+          ) : (
+            <div className="space-y-3">
+              {recentServices.map((service, index) => (
+                <Card key={index} className="p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-semibold">{service.serviceName}</h3>
+                    <Badge variant="default">Completed</Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {new Date(service.serviceDate).toLocaleDateString()}
+                  </p>
+                </Card>
+              ))}
+            </div>
+          )}
 
-            <Button variant="outline" className="w-full" asChild>
-              <Link href="/dashboard/history">View Full History</Link>
-            </Button>
-          </div>
+          <Button variant="outline" className="w-full" asChild>
+            <Link href="/dashboard/history">View Full History</Link>
+          </Button>
         </Card>
       </div>
 
-      {/* Maintenance Progress */}
+      {/* Service Interval */}
       <Card className="p-6">
         <div className="flex items-center gap-2 mb-4">
           <Gauge className="h-5 w-5 text-primary" />
-          <h2 className="text-xl font-bold">Service Interval Progress</h2>
+          <h2 className="text-xl font-bold">Next Service Countdown</h2>
         </div>
 
         <div className="space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">
-              Current: {vehicle.mileage}
-            </span>
-            <span className="text-muted-foreground" suppressHydrationWarning>
-              Next service: {formatNumber(fakeNextServiceMileage)} km
-            </span>
-          </div>
-
-          <Progress value={Math.min(serviceProgress, 100)} className="h-3" />
-
-          <p
-            className="text-sm text-muted-foreground text-center"
-            suppressHydrationWarning
-          >
-            {kmUntilService > 0
-              ? `${formatNumber(kmUntilService)} km until next service`
-              : "Service overdue"}
+          <p className="text-muted-foreground">
+            Remaining: {formatNumber(kmRemaining)} km
           </p>
+          <Progress value={progress} className="h-3" />
         </div>
       </Card>
     </div>

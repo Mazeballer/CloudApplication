@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { WorkshopNav } from "@/components/workshop-nav";
 import { useState } from "react";
-
+import { EditServiceDialog } from "@/components/edit-service";
 import { AddServiceDialog } from "@/components/AddServiceDialog";
 import { useWorkshops } from "@/contexts/WorkshopContext";
 import { useServices } from "@/contexts/ServiceContext";
@@ -58,6 +58,24 @@ export default function WorkshopServicesPage() {
     }
 
     return parts.join(" ");
+  };
+
+  const handleDelete = async (serviceId: string) => {
+    if (!confirm("Delete this service?")) return;
+
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/services/${serviceId}`,
+        { method: "DELETE" }
+      );
+
+      const data = await res.json();
+      if (data.success) {
+        refreshCurrentWorkshopServices();
+      }
+    } catch (err) {
+      console.error("Delete error:", err);
+    }
   };
 
   // 🛑 HYDRATION-SAFE LOADING CHECK 🛑
@@ -206,10 +224,17 @@ export default function WorkshopServicesPage() {
                   </div>
                   {/* Action Buttons */}
                   <div className="flex gap-2">
-                    {" "}
-                    {/* Changed to flex gap-2 for consistency */}
-                    <Button variant="outline" size="sm" className="flex-1">
-                      Edit
+                    <EditServiceDialog
+                      service={service}
+                      onUpdated={refreshCurrentWorkshopServices}
+                    />
+
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDelete(service.id)}
+                    >
+                      Delete
                     </Button>
                   </div>
                 </div>

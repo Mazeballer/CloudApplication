@@ -2,18 +2,9 @@
 
 import { ProtectedRoute } from "@/components/protected-route";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Calendar,
-  Clock,
-  Car,
-  Search,
-  Filter,
-  Upload,
-  Mail,
-} from "lucide-react";
+import { Clock, Car, Search, Filter, Upload, Mail } from "lucide-react";
 import { WorkshopNav } from "@/components/workshop-nav";
 import { useState, useEffect } from "react";
 import {
@@ -29,6 +20,23 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/auth";
 import { useWorkshops } from "@/contexts/WorkshopContext";
 import { useServiceRecords } from "@/contexts/ServiceRecordContext";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+const STATUS_FILTER_OPTIONS = [
+  "All",
+  "Requested",
+  "Scheduled",
+  "Active",
+  "Completed",
+  "Cancelled",
+];
 
 export default function WorkshopAppointmentsPage() {
   const { user } = useAuth();
@@ -37,6 +45,7 @@ export default function WorkshopAppointmentsPage() {
     useServiceRecords();
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [appointments, setAppointments] = useState<any[]>([]);
   const [selectedAppointment, setSelectedAppointment] = useState<any | null>(
     null
@@ -48,6 +57,9 @@ export default function WorkshopAppointmentsPage() {
     labor: "",
     notes: "",
   });
+  const [statusUpdateMessage, setStatusUpdateMessage] = useState<string | null>(
+    null
+  );
 
   // Fetch REAL data
   useEffect(() => {
@@ -71,28 +83,42 @@ export default function WorkshopAppointmentsPage() {
       }),
       workshop: r.workshopName,
       notes: r.remarks || "",
-      status: r.status,
+      status: r.status, // Requested | Scheduled | Active | Completed | Cancelled
       createdAt: r.serviceDate,
     }));
 
     setAppointments(mapped);
-  }, [recordsByWorkshop, loading, user]);
+  }, [recordsByWorkshop, loading, user, currentWorkshop]);
 
-  // Update service status (REAL backend)
   const updateStatus = async (id: string, status: string) => {
-    await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/service-records/${id}/status`,
-      {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(status),
-      }
+    const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+    const res = await fetch(`${API_URL}/api/ServiceRecord/${id}/status`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(status), // "Completed"
+    });
+
+    if (!res.ok) {
+      console.error("Failed to update status", res.status, await res.text());
+      return;
+    }
+
+    // Update local state
+    setAppointments((prev) =>
+      prev.map((apt) =>
+        apt.id === id ? { ...apt, status, _newStatus: undefined } : apt
+      )
     );
+
+    // Show small popup
+    setStatusUpdateMessage("Status updated");
+    setTimeout(() => setStatusUpdateMessage(null), 2000);
 
     refreshServiceRecords();
   };
 
-  // Invoice upload (still using localStorage)
+  // Invoice upload (mock extraction)
   const handleInvoiceUpload = async (file: File) => {
     setInvoiceFile(file);
 
@@ -107,22 +133,38 @@ export default function WorkshopAppointmentsPage() {
     }, 2000);
   };
 
-  const sendInvoiceToCustomer = () => {
-    if (selectedAppointment) {
-      const invoices = JSON.parse(
-        localStorage.getItem("autocare_invoices") || "[]"
-      );
-      invoices.push({
-        id: Date.now().toString(),
+  // Send invoice to real backend
+  const sendInvoiceToCustomer = async () => {
+    if (!selectedAppointment) return;
+    if (!extractedData.totalPrice) return;
+
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+      const payload = {
         bookingId: selectedAppointment.id,
         customerId: selectedAppointment.customerId,
         customerEmail: selectedAppointment.customerEmail,
-        ...extractedData,
+        totalPrice: extractedData.totalPrice,
+        parts: extractedData.parts,
+        labor: extractedData.labor,
+        notes: extractedData.notes,
         sentAt: new Date().toISOString(),
+      };
+
+      await fetch(`${API_URL}/invoices`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
       });
-      localStorage.setItem("autocare_invoices", JSON.stringify(invoices));
 
       alert(`Invoice sent to ${selectedAppointment.customerEmail}`);
+    } catch (err) {
+      console.error("Failed to send invoice", err);
+      alert("Failed to send invoice. Please try again.");
+    } finally {
       setSelectedAppointment(null);
       setInvoiceFile(null);
       setExtractedData({
@@ -134,13 +176,20 @@ export default function WorkshopAppointmentsPage() {
     }
   };
 
-  // Search filter
-  const filteredAppointments = appointments.filter(
-    (apt) =>
-      apt.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      apt.vehicle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      apt.service.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Search + status filter
+  const filteredAppointments = appointments.filter((apt) => {
+    const q = searchQuery.toLowerCase();
+
+    const matchesSearch =
+      apt.customerName.toLowerCase().includes(q) ||
+      apt.vehicle.toLowerCase().includes(q) ||
+      apt.service.toLowerCase().includes(q);
+
+    const matchesStatus =
+      !statusFilter || statusFilter === "All" || apt.status === statusFilter;
+
+    return matchesSearch && matchesStatus;
+  });
 
   return (
     <ProtectedRoute>
@@ -155,7 +204,7 @@ export default function WorkshopAppointmentsPage() {
             </p>
           </div>
 
-          {/* Search */}
+          {/* Search + Filter */}
           <div className="flex flex-col md:flex-row gap-4 mb-6">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -166,10 +215,31 @@ export default function WorkshopAppointmentsPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <Button variant="outline">
-              <Filter className="h-4 w-4 mr-2" />
-              Filter
-            </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <Filter className="h-4 w-4 mr-2" />
+                  {statusFilter && statusFilter !== "All"
+                    ? statusFilter
+                    : "Filter by status"}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Status</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {STATUS_FILTER_OPTIONS.map((status) => (
+                  <DropdownMenuItem
+                    key={status}
+                    onClick={() =>
+                      setStatusFilter(status === "All" ? null : status)
+                    }
+                  >
+                    {status === "All" ? "All statuses" : status}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           {/* Appointments List */}
@@ -179,237 +249,275 @@ export default function WorkshopAppointmentsPage() {
             </Card>
           ) : (
             <div className="space-y-4">
-              {filteredAppointments.map((appointment) => (
-                <Card
-                  key={appointment.id}
-                  className="p-6 hover:shadow-lg transition-shadow"
-                >
-                  <div className="flex items-center justify-between">
-                    {/* DATE BOX */}
-                    <div className="flex items-center gap-6 flex-1">
-                      <div className="text-center">
-                        <div className="bg-teal-500/10 px-4 py-2 rounded-lg">
-                          <p className="text-2xl font-bold text-teal-600">
-                            {new Date(appointment.date).getDate()}
-                          </p>
-                          <p className="text-xs text-muted-foreground uppercase">
-                            {new Date(appointment.date).toLocaleDateString(
-                              "en-US",
-                              { month: "short" }
-                            )}
-                          </p>
+              {filteredAppointments.map((appointment) => {
+                const draftStatus =
+                  appointment._newStatus ?? appointment.status;
+                const hasChanged = appointment._newStatus
+                  ? appointment._newStatus !== appointment.status
+                  : false;
+
+                return (
+                  <Card
+                    key={appointment.id}
+                    className="p-6 hover:shadow-lg transition-shadow"
+                  >
+                    <div className="flex items-center justify-between gap-6">
+                      {/* DATE BOX + DETAILS */}
+                      <div className="flex items-center gap-6 flex-1">
+                        <div className="text-center">
+                          <div className="bg-teal-500/10 px-4 py-2 rounded-lg">
+                            <p className="text-2xl font-bold text-teal-600">
+                              {new Date(appointment.date).getDate()}
+                            </p>
+                            <p className="text-xs text-muted-foreground uppercase">
+                              {new Date(appointment.date).toLocaleDateString(
+                                "en-US",
+                                { month: "short" }
+                              )}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex-1">
+                          {/* Customer + Status */}
+                          <div className="flex items-center gap-3 mb-2 flex-wrap">
+                            <h3 className="font-bold text-lg">
+                              {appointment.customerName}
+                            </h3>
+
+                            <div className="flex items-center gap-2">
+                              <select
+                                className="border rounded px-2 py-1 text-sm"
+                                value={draftStatus}
+                                onChange={(e) => {
+                                  appointment._newStatus = e.target.value;
+                                  setAppointments([...appointments]);
+                                }}
+                              >
+                                <option value="Requested">Requested</option>
+                                <option value="Scheduled">Scheduled</option>
+                                <option value="Active">Active</option>
+                                <option value="Completed">Completed</option>
+                                <option value="Cancelled">Cancelled</option>
+                              </select>
+
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() =>
+                                  updateStatus(
+                                    appointment.id,
+                                    appointment._newStatus || appointment.status
+                                  )
+                                }
+                                disabled={!hasChanged}
+                              >
+                                Update
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* Details */}
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <Clock className="h-4 w-4" />
+                              <span>{appointment.time}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <Car className="h-4 w-4" />
+                              <span>{appointment.vehicle}</span>
+                            </div>
+                            <div className="text-muted-foreground">
+                              <span className="font-medium">Service:</span>{" "}
+                              {appointment.service}
+                            </div>
+                            <div className="text-muted-foreground">
+                              <span className="font-medium">Phone:</span>{" "}
+                              {appointment.customerPhone}
+                            </div>
+                          </div>
+
+                          {appointment.notes && (
+                            <p className="text-sm text-muted-foreground mt-2">
+                              <span className="font-medium">Notes:</span>{" "}
+                              {appointment.notes}
+                            </p>
+                          )}
                         </div>
                       </div>
 
-                      <div className="flex-1">
-                        {/* Customer + Status */}
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="font-bold text-lg">
-                            {appointment.customerName}
-                          </h3>
-
-                          <div className="flex items-center gap-2">
-                            <select
-                              className="border rounded px-2 py-1 text-sm"
-                              value={appointment.status}
-                              onChange={(e) => {
-                                // temporarily store chosen status into the local object
-                                appointment._newStatus = e.target.value;
-                                setAppointments([...appointments]); // forces UI update
-                              }}
-                            >
-                              <option value="Request">Request</option>
-                              <option value="Scheduled">Scheduled</option>
-                              <option value="InProgress">In Progress</option>
-                              <option value="Completed">Completed</option>
-                              <option value="Cancelled">Cancelled</option>
-                            </select>
-
+                      {/* Upload invoice – only when status === 'Completed' */}
+                      <div className="flex-shrink-0">
+                        <Dialog
+                          open={
+                            selectedAppointment?.id === appointment.id &&
+                            !!selectedAppointment
+                          }
+                          onOpenChange={(open) => {
+                            if (!open) {
+                              setSelectedAppointment(null);
+                              setInvoiceFile(null);
+                              setExtractedData({
+                                totalPrice: "",
+                                parts: "",
+                                labor: "",
+                                notes: "",
+                              });
+                            } else if (appointment.status === "Completed") {
+                              setSelectedAppointment(appointment);
+                            }
+                          }}
+                        >
+                          <DialogTrigger asChild>
                             <Button
                               size="sm"
-                              variant="secondary"
                               onClick={() =>
-                                updateStatus(
-                                  appointment.id,
-                                  appointment._newStatus || appointment.status
-                                )
+                                appointment.status === "Completed" &&
+                                setSelectedAppointment(appointment)
                               }
+                              disabled={appointment.status !== "Completed"}
                             >
-                              Update
+                              <Upload className="h-4 w-4 mr-2" />
+                              Upload Invoice
                             </Button>
-                          </div>
-                        </div>
+                          </DialogTrigger>
 
-                        {/* Details */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                          <div className="flex items-center gap-2 text-muted-foreground">
-                            <Clock className="h-4 w-4" />
-                            <span>{appointment.time}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-muted-foreground">
-                            <Car className="h-4 w-4" />
-                            <span>{appointment.vehicle}</span>
-                          </div>
-                          <div className="text-muted-foreground">
-                            <span className="font-medium">Service:</span>{" "}
-                            {appointment.service}
-                          </div>
-                          <div className="text-muted-foreground">
-                            <span className="font-medium">Phone:</span>{" "}
-                            {appointment.customerPhone}
-                          </div>
-                        </div>
+                          <DialogContent className="max-w-2xl">
+                            <DialogHeader>
+                              <DialogTitle>
+                                Upload Invoice for {appointment.customerName}
+                              </DialogTitle>
+                              <DialogDescription>
+                                Upload invoice photo and we will extract details
+                              </DialogDescription>
+                            </DialogHeader>
 
-                        {appointment.notes && (
-                          <p className="text-sm text-muted-foreground mt-2">
-                            <span className="font-medium">Notes:</span>{" "}
-                            {appointment.notes}
-                          </p>
-                        )}
+                            {/* Invoice upload */}
+                            <div className="space-y-6 py-4">
+                              <div className="space-y-2">
+                                <Label>Invoice Photo</Label>
+                                <div className="border-2 border-dashed rounded-lg p-8 text-center">
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => {
+                                      if (e.target.files?.[0]) {
+                                        handleInvoiceUpload(e.target.files[0]);
+                                      }
+                                    }}
+                                    className="hidden"
+                                    id="invoice-upload"
+                                  />
+                                  <label
+                                    htmlFor="invoice-upload"
+                                    className="cursor-pointer"
+                                  >
+                                    <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                                    <p className="text-sm text-muted-foreground mb-2">
+                                      Click to upload invoice
+                                    </p>
+                                    {invoiceFile && (
+                                      <p className="text-sm font-medium text-teal-600">
+                                        {invoiceFile.name}
+                                      </p>
+                                    )}
+                                  </label>
+                                </div>
+                              </div>
+
+                              {/* Extracted data */}
+                              {invoiceFile && (
+                                <div className="space-y-4 border-t pt-4">
+                                  <h4 className="font-semibold">
+                                    Extracted Invoice Details
+                                  </h4>
+
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                      <Label>Total Price</Label>
+                                      <Input
+                                        value={extractedData.totalPrice}
+                                        onChange={(e) =>
+                                          setExtractedData({
+                                            ...extractedData,
+                                            totalPrice: e.target.value,
+                                          })
+                                        }
+                                        placeholder="$0.00"
+                                      />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                      <Label>Labor Cost</Label>
+                                      <Input
+                                        value={extractedData.labor}
+                                        onChange={(e) =>
+                                          setExtractedData({
+                                            ...extractedData,
+                                            labor: e.target.value,
+                                          })
+                                        }
+                                        placeholder="$0.00"
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    <Label>Parts Used</Label>
+                                    <Textarea
+                                      value={extractedData.parts}
+                                      onChange={(e) =>
+                                        setExtractedData({
+                                          ...extractedData,
+                                          parts: e.target.value,
+                                        })
+                                      }
+                                      placeholder="List of parts..."
+                                      rows={3}
+                                    />
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    <Label>Service Notes</Label>
+                                    <Textarea
+                                      value={extractedData.notes}
+                                      onChange={(e) =>
+                                        setExtractedData({
+                                          ...extractedData,
+                                          notes: e.target.value,
+                                        })
+                                      }
+                                      placeholder="Service details..."
+                                      rows={3}
+                                    />
+                                  </div>
+
+                                  {/* Send Invoice */}
+                                  <Button
+                                    className="w-full"
+                                    onClick={sendInvoiceToCustomer}
+                                    disabled={!extractedData.totalPrice}
+                                  >
+                                    <Mail className="h-4 w-4 mr-2" />
+                                    Send Invoice to Customer
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          </DialogContent>
+                        </Dialog>
                       </div>
                     </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
 
-                    {/* Upload invoice */}
-                    <div className="flex gap-2">
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button
-                            size="sm"
-                            onClick={() => setSelectedAppointment(appointment)}
-                          >
-                            <Upload className="h-4 w-4 mr-2" />
-                            Upload Invoice
-                          </Button>
-                        </DialogTrigger>
-
-                        <DialogContent className="max-w-2xl">
-                          <DialogHeader>
-                            <DialogTitle>
-                              Upload Invoice for {appointment.customerName}
-                            </DialogTitle>
-                            <DialogDescription>
-                              Upload invoice photo and we will extract details
-                            </DialogDescription>
-                          </DialogHeader>
-
-                          {/* Invoice upload */}
-                          <div className="space-y-6 py-4">
-                            <div className="space-y-2">
-                              <Label>Invoice Photo</Label>
-                              <div className="border-2 border-dashed rounded-lg p-8 text-center">
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={(e) => {
-                                    if (e.target.files?.[0]) {
-                                      handleInvoiceUpload(e.target.files[0]);
-                                    }
-                                  }}
-                                  className="hidden"
-                                  id="invoice-upload"
-                                />
-                                <label
-                                  htmlFor="invoice-upload"
-                                  className="cursor-pointer"
-                                >
-                                  <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                                  <p className="text-sm text-muted-foreground mb-2">
-                                    Click to upload invoice
-                                  </p>
-                                  {invoiceFile && (
-                                    <p className="text-sm font-medium text-teal-600">
-                                      {invoiceFile.name}
-                                    </p>
-                                  )}
-                                </label>
-                              </div>
-                            </div>
-
-                            {/* Extracted data */}
-                            {invoiceFile && (
-                              <div className="space-y-4 border-t pt-4">
-                                <h4 className="font-semibold">
-                                  Extracted Invoice Details
-                                </h4>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div className="space-y-2">
-                                    <Label>Total Price</Label>
-                                    <Input
-                                      value={extractedData.totalPrice}
-                                      onChange={(e) =>
-                                        setExtractedData({
-                                          ...extractedData,
-                                          totalPrice: e.target.value,
-                                        })
-                                      }
-                                      placeholder="$0.00"
-                                    />
-                                  </div>
-
-                                  <div className="space-y-2">
-                                    <Label>Labor Cost</Label>
-                                    <Input
-                                      value={extractedData.labor}
-                                      onChange={(e) =>
-                                        setExtractedData({
-                                          ...extractedData,
-                                          labor: e.target.value,
-                                        })
-                                      }
-                                      placeholder="$0.00"
-                                    />
-                                  </div>
-                                </div>
-
-                                <div className="space-y-2">
-                                  <Label>Parts Used</Label>
-                                  <Textarea
-                                    value={extractedData.parts}
-                                    onChange={(e) =>
-                                      setExtractedData({
-                                        ...extractedData,
-                                        parts: e.target.value,
-                                      })
-                                    }
-                                    placeholder="List of parts..."
-                                    rows={3}
-                                  />
-                                </div>
-
-                                <div className="space-y-2">
-                                  <Label>Service Notes</Label>
-                                  <Textarea
-                                    value={extractedData.notes}
-                                    onChange={(e) =>
-                                      setExtractedData({
-                                        ...extractedData,
-                                        notes: e.target.value,
-                                      })
-                                    }
-                                    placeholder="Service details..."
-                                    rows={3}
-                                  />
-                                </div>
-
-                                {/* Send Invoice */}
-                                <Button
-                                  className="w-full"
-                                  onClick={sendInvoiceToCustomer}
-                                  disabled={!extractedData.totalPrice}
-                                >
-                                  <Mail className="h-4 w-4 mr-2" />
-                                  Send Invoice to Customer
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-                    </div>
-                  </div>
-                </Card>
-              ))}
+          {/* Small popup message for status update */}
+          {statusUpdateMessage && (
+            <div className="fixed bottom-4 right-4 rounded-md bg-emerald-500 text-white px-4 py-2 shadow-lg text-sm">
+              {statusUpdateMessage}
             </div>
           )}
         </main>
