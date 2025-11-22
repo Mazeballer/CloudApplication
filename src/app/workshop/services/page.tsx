@@ -26,10 +26,8 @@ import { useServices } from "@/contexts/ServiceContext";
 export default function WorkshopServicesPage() {
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Current workshop info
   const { currentWorkshop, loading: workshopLoading } = useWorkshops();
 
-  // Services for this workshop
   const {
     servicesForCurrentWorkshop,
     loading: servicesLoading,
@@ -38,12 +36,14 @@ export default function WorkshopServicesPage() {
 
   const loading = workshopLoading || servicesLoading;
 
-  // Search filter
-  const filteredServices = servicesForCurrentWorkshop.filter((service) =>
-    service.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filter: only Active OR match search query
+  const filteredServices = servicesForCurrentWorkshop
+    .filter((service) =>
+      service.name.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    .sort((a, b) => a.status.localeCompare(b.status)); // Show Active first
 
-  const formatDuration = (totalMinutes: any) => {
+  const formatDuration = (totalMinutes: number) => {
     if (totalMinutes === 0) return "0 mins";
 
     const hours = Math.floor(totalMinutes / 60);
@@ -60,13 +60,13 @@ export default function WorkshopServicesPage() {
     return parts.join(" ");
   };
 
-  const handleDelete = async (serviceId: string) => {
-    if (!confirm("Delete this service?")) return;
+  const handleActivate = async (serviceId: string) => {
+    if (!confirm("Activate this service?")) return;
 
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/services/${serviceId}`,
-        { method: "DELETE" }
+        `${process.env.NEXT_PUBLIC_API_URL}/api/services/${serviceId}/activate`,
+        { method: "PUT" }
       );
 
       const data = await res.json();
@@ -74,13 +74,28 @@ export default function WorkshopServicesPage() {
         refreshCurrentWorkshopServices();
       }
     } catch (err) {
-      console.error("Delete error:", err);
+      console.error("Activate error:", err);
     }
   };
 
-  // 🛑 HYDRATION-SAFE LOADING CHECK 🛑
-  // If the component is loading or the necessary workshop data isn't ready,
-  // we render a simple, static loading state to avoid complex component tree mismatches.
+  const handleDeactivate = async (serviceId: string) => {
+    if (!confirm("Deactivate this service?")) return;
+
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/services/${serviceId}/deactivate`,
+        { method: "PUT" }
+      );
+
+      const data = await res.json();
+      if (data.success) {
+        refreshCurrentWorkshopServices();
+      }
+    } catch (err) {
+      console.error("Deactivate error:", err);
+    }
+  };
+
   if (loading || !currentWorkshop) {
     return (
       <ProtectedRoute>
@@ -94,16 +109,12 @@ export default function WorkshopServicesPage() {
     );
   }
 
-  // Once loading is complete and data is present, render the full page
   return (
     <ProtectedRoute>
-      {/* This DIV is the one causing the conflict in the screenshot */}
       <div className="min-h-screen bg-muted/30">
         <WorkshopNav />
 
         <main className="container mx-auto px-18 py-8">
-          {/* ... (rest of your existing content) ... */}
-
           <div className="mb-8">
             <h1 className="text-3xl font-bold mb-2">Service Catalog</h1>
             <p className="text-muted-foreground">
@@ -111,7 +122,6 @@ export default function WorkshopServicesPage() {
             </p>
           </div>
 
-          {/* Search + Add Service */}
           <div className="flex flex-col md:flex-row gap-4 mb-6">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -123,34 +133,32 @@ export default function WorkshopServicesPage() {
               />
             </div>
 
-            {/* ADD SERVICE */}
             <AddServiceDialog
-              // Ensure workshopId is guaranteed to be a string here due to the check above
               workshopId={currentWorkshop.id}
               onServiceAdded={refreshCurrentWorkshopServices}
             />
           </div>
 
-          {/* No Services */}
           {filteredServices.length === 0 && (
             <p className="text-muted-foreground">
-              No services available. Click 'Add Service' to begin.
+              No services found. Try adjusting your search or add a service.
             </p>
           )}
 
-          {/* Services Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredServices.map((service) => (
               <Card
                 key={service.id}
-                // 🛑 Key Fix: Make Card a flex column container and ensure min-height for structure
-                className="p-6 flex flex-col hover:shadow-lg transition-shadow min-h-[350px]"
+                className={`p-6 flex flex-col hover:shadow-lg transition-shadow min-h-[350px] ${
+                  service.status === "Inactive" ? "opacity-50" : ""
+                }`}
               >
-                {/* 1. Header (Name, Badge, Icon) */}
+                {/* HEADER */}
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
                     <h3 className="font-bold text-lg mb-2">{service.name}</h3>
-                    <div className="flex gap-2">
+
+                    <div className="flex gap-2 items-center">
                       <Badge
                         className={
                           service.category === "Maintenance"
@@ -164,8 +172,15 @@ export default function WorkshopServicesPage() {
                       >
                         {service.category}
                       </Badge>
+
+                      {service.status === "Inactive" && (
+                        <Badge className="bg-red-600 text-white">
+                          Inactive
+                        </Badge>
+                      )}
                     </div>
                   </div>
+
                   <div
                     className={
                       service.category === "Maintenance"
@@ -189,18 +204,13 @@ export default function WorkshopServicesPage() {
                   </div>
                 </div>
 
-                {/* 2. Description (The variable height element) */}
+                {/* DESCRIPTION */}
                 <p className="text-sm text-muted-foreground mb-4 flex-1 overflow-hidden">
-                  {/* 🛑 Optional: Clamp the description to 4 lines for extremely long text */}
-                  {/* If you want to limit the lines, add: line-clamp-4 */}
                   {service.description}
                 </p>
 
-                {/* 3. Footer (Stats and Button) - Pushed to the bottom */}
+                {/* FOOTER */}
                 <div className="mt-auto">
-                  {" "}
-                  {/* 🛑 Key Fix: mt-auto pushes this section to the bottom */}
-                  {/* Price and Duration Stats */}
                   <div className="space-y-2 mb-4">
                     <div className="flex items-center justify-between text-sm">
                       <div className="flex items-center gap-2 text-muted-foreground">
@@ -222,20 +232,30 @@ export default function WorkshopServicesPage() {
                       </span>
                     </div>
                   </div>
-                  {/* Action Buttons */}
+
                   <div className="flex gap-2">
                     <EditServiceDialog
                       service={service}
                       onUpdated={refreshCurrentWorkshopServices}
                     />
 
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleDelete(service.id)}
-                    >
-                      Delete
-                    </Button>
+                    {service.status === "Active" ? (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDeactivate(service.id)}
+                      >
+                        Deactivate
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => handleActivate(service.id)}
+                      >
+                        Activate
+                      </Button>
+                    )}
                   </div>
                 </div>
               </Card>

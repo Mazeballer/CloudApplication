@@ -12,15 +12,16 @@ import {
   addService,
   getAllWorkshopServices,
 } from "@/lib/service";
-import { useAuth } from "@/lib/auth"; // Use your custom hook
+import { useAuth } from "@/lib/auth";
 
-interface Service {
+export interface Service {
   id: string;
   name: string;
   category: string;
   description: string;
   durationMinutes: number;
   price: number;
+  status: "Active" | "Inactive"; // ← FIXED
 }
 
 interface WorkshopServiceGroup {
@@ -43,7 +44,7 @@ interface ServiceContextType {
 const ServiceContext = createContext<ServiceContextType | null>(null);
 
 export function ServiceProvider({ children }: { children: ReactNode }) {
-  const { user, userType, isLoading: authLoading } = useAuth(); // Use custom hook
+  const { user, userType, isLoading: authLoading } = useAuth();
 
   const [servicesForCurrentWorkshop, setServicesForCurrentWorkshop] = useState<
     Service[]
@@ -72,6 +73,7 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
         description: s.description,
         durationMinutes: s.durationMinutes,
         price: s.price,
+        status: s.status ?? "Active",
       }));
 
       setServicesForCurrentWorkshop(formatted);
@@ -87,12 +89,30 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       const data = await getAllWorkshopServices();
-      setServicesByWorkshop(data);
 
-      const formatted: WorkshopServiceGroup[] = Object.entries(data).map(
+      const mapped: Record<string, Service[]> = {};
+
+      Array.isArray(data) &&
+        data.forEach((group: any) => {
+          const workshopId = group.workshopProfileId;
+
+          mapped[workshopId] = group.services.map((s: any) => ({
+            id: s.id,
+            name: s.name,
+            category: s.category,
+            description: s.description,
+            durationMinutes: s.durationMinutes,
+            price: s.price,
+            status: s.status ?? "Active",
+          }));
+        });
+
+      setServicesByWorkshop(mapped);
+
+      const formatted: WorkshopServiceGroup[] = Object.entries(mapped).map(
         ([workshopId, services]) => ({
-          workshopId: workshopId,
-          services: services,
+          workshopId,
+          services,
         })
       );
 
@@ -110,7 +130,7 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    if (authLoading) return; // Wait for auth to load
+    if (authLoading) return;
     if (userType === "Workshop") {
       refreshCurrentWorkshopServices();
     }

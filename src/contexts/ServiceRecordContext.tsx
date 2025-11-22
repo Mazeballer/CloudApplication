@@ -28,6 +28,7 @@ interface ServiceRecord {
 
   remarks: string;
   status?: string;
+  invoiceId?: string;
 }
 
 interface ServiceRecordContextType {
