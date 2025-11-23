@@ -40,7 +40,9 @@ export function Navigation() {
           <Button variant="ghost" asChild>
             <Link href="/login">Login</Link>
           </Button>
-          <Button>Book a service</Button>
+          <Button asChild>
+            <Link href="/login">Book a service</Link>
+          </Button>
         </div>
 
         {/* Mobile Menu */}

@@ -23,18 +23,51 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setFieldErrors({});
 
-    if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match");
-      return;
+    const errors: Record<string, string> = {};
+
+    // Validation checks
+    if (!formData.name.trim()) {
+      errors.name = "Full name is required";
     }
 
-    if (formData.password.length < 6) {
-      setError("Password must be at least 6 characters");
+    if (!formData.email.trim()) {
+      errors.email = "Email is required";
+    }
+
+    if (!formData.phone.trim()) {
+      errors.phone = "Phone number is required";
+    }
+
+    if (!formData.password) {
+      errors.password = "Password is required";
+    }
+
+    if (!formData.confirmPassword) {
+      errors.confirmPassword = "Please confirm your password";
+    }
+
+    if (
+      formData.password &&
+      formData.confirmPassword &&
+      formData.password !== formData.confirmPassword
+    ) {
+      errors.confirmPassword = "Passwords do not match";
+    }
+
+    if (formData.password && formData.password.length < 6) {
+      errors.password = "Password must be at least 6 characters";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setError("Please fill in all required fields");
       return;
     }
 
@@ -60,7 +93,7 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen flex">
       {/* Left Side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-linear-to-br from-teal-600 to-teal-800 p-12 items-center justify-center">
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-teal-600 to-teal-800 p-12 items-center justify-center">
         <div className="max-w-md text-white">
           <div className="flex items-center gap-3 mb-8">
             <div className="bg-white p-3 rounded-xl">
@@ -99,9 +132,12 @@ export default function SignupPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, name: e.target.value })
                   }
-                  required
                   disabled={isLoading}
+                  className={fieldErrors.name ? "border-red-500" : ""}
                 />
+                {fieldErrors.name && (
+                  <p className="text-sm text-red-500">{fieldErrors.name}</p>
+                )}
               </div>
 
               {/* Email Field */}
@@ -115,9 +151,12 @@ export default function SignupPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, email: e.target.value })
                   }
-                  required
                   disabled={isLoading}
+                  className={fieldErrors.email ? "border-red-500" : ""}
                 />
+                {fieldErrors.email && (
+                  <p className="text-sm text-red-500">{fieldErrors.email}</p>
+                )}
               </div>
 
               {/* Phone Field */}
@@ -131,9 +170,12 @@ export default function SignupPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, phone: e.target.value })
                   }
-                  required
                   disabled={isLoading}
+                  className={fieldErrors.phone ? "border-red-500" : ""}
                 />
+                {fieldErrors.phone && (
+                  <p className="text-sm text-red-500">{fieldErrors.phone}</p>
+                )}
               </div>
 
               {/* Password Field */}
@@ -148,8 +190,8 @@ export default function SignupPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, password: e.target.value })
                     }
-                    required
                     disabled={isLoading}
+                    className={fieldErrors.password ? "border-red-500" : ""}
                   />
                   <button
                     type="button"
@@ -163,6 +205,9 @@ export default function SignupPage() {
                     )}
                   </button>
                 </div>
+                {fieldErrors.password && (
+                  <p className="text-sm text-red-500">{fieldErrors.password}</p>
+                )}
               </div>
 
               {/* Confirm Password Field */}
@@ -179,9 +224,16 @@ export default function SignupPage() {
                       confirmPassword: e.target.value,
                     })
                   }
-                  required
                   disabled={isLoading}
+                  className={
+                    fieldErrors.confirmPassword ? "border-red-500" : ""
+                  }
                 />
+                {fieldErrors.confirmPassword && (
+                  <p className="text-sm text-red-500">
+                    {fieldErrors.confirmPassword}
+                  </p>
+                )}
               </div>
 
               {/* Error Message */}

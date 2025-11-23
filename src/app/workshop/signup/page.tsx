@@ -47,25 +47,131 @@ export default function WorkshopSignupPage() {
 
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
 
+  const validateStep1 = () => {
+    const errors: Record<string, string> = {};
+
+    if (!formData.workshopName.trim()) {
+      errors.workshopName = "Workshop name is required";
+    }
+    if (!formData.ownerName.trim()) {
+      errors.ownerName = "Owner name is required";
+    }
+    if (!formData.email.trim()) {
+      errors.email = "Email is required";
+    }
+    if (!formData.phone.trim()) {
+      errors.phone = "Phone number is required";
+    } else if (!/^\d+$/.test(formData.phone.replace(/\s+/g, ""))) {
+      errors.phone = "Phone number must contain only numbers";
+    }
+    if (!formData.password) {
+      errors.password = "Password is required";
+    }
+    if (!formData.confirmPassword) {
+      errors.confirmPassword = "Please confirm your password";
+    }
+    if (
+      formData.password &&
+      formData.confirmPassword &&
+      formData.password !== formData.confirmPassword
+    ) {
+      errors.confirmPassword = "Passwords do not match";
+    }
+    if (formData.password && formData.password.length < 6) {
+      errors.password = "Password must be at least 6 characters";
+    }
+
+    return errors;
+  };
+
+  const validateStep2 = () => {
+    const errors: Record<string, string> = {};
+
+    if (!formData.address.street.trim()) {
+      errors.street = "Street is required";
+    }
+    if (!formData.address.city.trim()) {
+      errors.city = "City is required";
+    }
+    if (!formData.address.state.trim()) {
+      errors.state = "State is required";
+    }
+    if (!formData.address.postcode.trim()) {
+      errors.postcode = "Postcode is required";
+    } else if (!/^\d+$/.test(formData.address.postcode.replace(/\s+/g, ""))) {
+      errors.postcode = "Postcode must contain only numbers";
+    }
+    if (!formData.address.country.trim()) {
+      errors.country = "Country is required";
+    }
+
+    return errors;
+  };
+
+  const validateStep3 = () => {
+    const errors: Record<string, string> = {};
+
+    // Check if any day is open, and if so, ensure times are filled
+    Object.entries(formData.operatingHours.hoursByDay).forEach(
+      ([day, info]) => {
+        if (info.isOpen) {
+          if (!info.startTime) {
+            errors[`${day}_start`] = `${day} start time is required`;
+          }
+          if (!info.endTime) {
+            errors[`${day}_end`] = `${day} end time is required`;
+          }
+        }
+      }
+    );
+
+    return errors;
+  };
+
   const goNextStep = () => {
-    if (!formData.workshopName || !formData.email || !formData.phone) {
-      return setError("Please complete all required fields.");
+    const errors = validateStep1();
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setError("Please fill in all required fields");
+      return;
     }
-    if (formData.password !== formData.confirmPassword) {
-      return setError("Passwords do not match.");
-    }
-    if (formData.password.length < 6) {
-      return setError("Password must be at least 6 characters.");
-    }
+
+    setFieldErrors({});
     setError("");
     setStep(2);
   };
 
+  const goToStep3 = () => {
+    const errors = validateStep2();
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setError("Please fill in all address fields");
+      return;
+    }
+
+    setFieldErrors({});
+    setError("");
+    setStep(3);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const errors = validateStep3();
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setError("Please fill in all required operating hours");
+      return;
+    }
+
     setError("");
+    setFieldErrors({});
     setIsLoading(true);
 
     const hoursArray = Object.entries(formData.operatingHours.hoursByDay).map(
@@ -102,7 +208,7 @@ export default function WorkshopSignupPage() {
   return (
     <div className="min-h-screen flex">
       {/* LEFT BRAND SECTION */}
-      <div className="hidden lg:flex lg:w-1/3 bg-linear-to-br from-amber-600 to-amber-800 p-12 items-center justify-center">
+      <div className="hidden lg:flex lg:w-1/3 bg-gradient-to-br from-amber-600 to-amber-800 p-12 items-center justify-center">
         <div className="max-w-md text-white">
           <div className="flex items-center gap-3 mb-8">
             <div className="bg-white p-3 rounded-xl">
@@ -159,8 +265,15 @@ export default function WorkshopSignupPage() {
                           workshopName: e.target.value,
                         })
                       }
-                      required
+                      className={
+                        fieldErrors.workshopName ? "border-red-500" : ""
+                      }
                     />
+                    {fieldErrors.workshopName && (
+                      <p className="text-sm text-red-500">
+                        {fieldErrors.workshopName}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -170,8 +283,13 @@ export default function WorkshopSignupPage() {
                       onChange={(e) =>
                         setFormData({ ...formData, ownerName: e.target.value })
                       }
-                      required
+                      className={fieldErrors.ownerName ? "border-red-500" : ""}
                     />
+                    {fieldErrors.ownerName && (
+                      <p className="text-sm text-red-500">
+                        {fieldErrors.ownerName}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -182,8 +300,13 @@ export default function WorkshopSignupPage() {
                       onChange={(e) =>
                         setFormData({ ...formData, email: e.target.value })
                       }
-                      required
+                      className={fieldErrors.email ? "border-red-500" : ""}
                     />
+                    {fieldErrors.email && (
+                      <p className="text-sm text-red-500">
+                        {fieldErrors.email}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -193,8 +316,13 @@ export default function WorkshopSignupPage() {
                       onChange={(e) =>
                         setFormData({ ...formData, phone: e.target.value })
                       }
-                      required
+                      className={fieldErrors.phone ? "border-red-500" : ""}
                     />
+                    {fieldErrors.phone && (
+                      <p className="text-sm text-red-500">
+                        {fieldErrors.phone}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -206,7 +334,7 @@ export default function WorkshopSignupPage() {
                         onChange={(e) =>
                           setFormData({ ...formData, password: e.target.value })
                         }
-                        required
+                        className={fieldErrors.password ? "border-red-500" : ""}
                       />
                       <button
                         type="button"
@@ -220,6 +348,11 @@ export default function WorkshopSignupPage() {
                         )}
                       </button>
                     </div>
+                    {fieldErrors.password && (
+                      <p className="text-sm text-red-500">
+                        {fieldErrors.password}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -233,8 +366,15 @@ export default function WorkshopSignupPage() {
                           confirmPassword: e.target.value,
                         })
                       }
-                      required
+                      className={
+                        fieldErrors.confirmPassword ? "border-red-500" : ""
+                      }
                     />
+                    {fieldErrors.confirmPassword && (
+                      <p className="text-sm text-red-500">
+                        {fieldErrors.confirmPassword}
+                      </p>
+                    )}
                   </div>
 
                   {error && (
@@ -270,8 +410,13 @@ export default function WorkshopSignupPage() {
                               },
                             })
                           }
-                          required
+                          className={fieldErrors.street ? "border-red-500" : ""}
                         />
+                        {fieldErrors.street && (
+                          <p className="text-sm text-red-500">
+                            {fieldErrors.street}
+                          </p>
+                        )}
                       </div>
 
                       <div>
@@ -287,8 +432,13 @@ export default function WorkshopSignupPage() {
                               },
                             })
                           }
-                          required
+                          className={fieldErrors.city ? "border-red-500" : ""}
                         />
+                        {fieldErrors.city && (
+                          <p className="text-sm text-red-500">
+                            {fieldErrors.city}
+                          </p>
+                        )}
                       </div>
 
                       <div>
@@ -304,8 +454,13 @@ export default function WorkshopSignupPage() {
                               },
                             })
                           }
-                          required
+                          className={fieldErrors.state ? "border-red-500" : ""}
                         />
+                        {fieldErrors.state && (
+                          <p className="text-sm text-red-500">
+                            {fieldErrors.state}
+                          </p>
+                        )}
                       </div>
 
                       <div>
@@ -321,8 +476,15 @@ export default function WorkshopSignupPage() {
                               },
                             })
                           }
-                          required
+                          className={
+                            fieldErrors.postcode ? "border-red-500" : ""
+                          }
                         />
+                        {fieldErrors.postcode && (
+                          <p className="text-sm text-red-500">
+                            {fieldErrors.postcode}
+                          </p>
+                        )}
                       </div>
 
                       <div>
@@ -338,8 +500,15 @@ export default function WorkshopSignupPage() {
                               },
                             })
                           }
-                          required
+                          className={
+                            fieldErrors.country ? "border-red-500" : ""
+                          }
                         />
+                        {fieldErrors.country && (
+                          <p className="text-sm text-red-500">
+                            {fieldErrors.country}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -356,15 +525,15 @@ export default function WorkshopSignupPage() {
                       type="button"
                       variant="outline"
                       className="w-1/2"
-                      onClick={() => setStep(1)}
+                      onClick={() => {
+                        setStep(1);
+                        setFieldErrors({});
+                        setError("");
+                      }}
                     >
                       Back
                     </Button>
-                    <Button
-                      type="button"
-                      className="w-1/2"
-                      onClick={() => setStep(3)}
-                    >
+                    <Button type="button" className="w-1/2" onClick={goToStep3}>
                       Next
                     </Button>
                   </div>
@@ -381,7 +550,12 @@ export default function WorkshopSignupPage() {
                         ([day, info]) => (
                           <div
                             key={day}
-                            className="border rounded-lg p-4 bg-muted/40 space-y-3 shadow-sm"
+                            className={`border rounded-lg p-4 bg-muted/40 space-y-3 shadow-sm ${
+                              fieldErrors[`${day}_start`] ||
+                              fieldErrors[`${day}_end`]
+                                ? "border-red-500"
+                                : ""
+                            }`}
                           >
                             {/* Header row */}
                             <div className="flex items-center justify-between">
@@ -419,7 +593,11 @@ export default function WorkshopSignupPage() {
                                   </Label>
                                   <Input
                                     type="time"
-                                    className="text-sm"
+                                    className={`text-sm ${
+                                      fieldErrors[`${day}_start`]
+                                        ? "border-red-500"
+                                        : ""
+                                    }`}
                                     value={info.startTime}
                                     onChange={(e) =>
                                       setFormData({
@@ -437,6 +615,11 @@ export default function WorkshopSignupPage() {
                                       })
                                     }
                                   />
+                                  {fieldErrors[`${day}_start`] && (
+                                    <p className="text-xs text-red-500 mt-1">
+                                      {fieldErrors[`${day}_start`]}
+                                    </p>
+                                  )}
                                 </div>
 
                                 <div>
@@ -445,7 +628,11 @@ export default function WorkshopSignupPage() {
                                   </Label>
                                   <Input
                                     type="time"
-                                    className="text-sm"
+                                    className={`text-sm ${
+                                      fieldErrors[`${day}_end`]
+                                        ? "border-red-500"
+                                        : ""
+                                    }`}
                                     value={info.endTime}
                                     onChange={(e) =>
                                       setFormData({
@@ -463,6 +650,11 @@ export default function WorkshopSignupPage() {
                                       })
                                     }
                                   />
+                                  {fieldErrors[`${day}_end`] && (
+                                    <p className="text-xs text-red-500 mt-1">
+                                      {fieldErrors[`${day}_end`]}
+                                    </p>
+                                  )}
                                 </div>
                               </div>
                             )}
@@ -472,12 +664,23 @@ export default function WorkshopSignupPage() {
                     </div>
                   </div>
 
+                  {error && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                  )}
+
                   <div className="flex gap-3">
                     <Button
                       type="button"
                       variant="outline"
                       className="w-1/2"
-                      onClick={() => setStep(2)}
+                      onClick={() => {
+                        setStep(2);
+                        setFieldErrors({});
+                        setError("");
+                      }}
                     >
                       Back
                     </Button>

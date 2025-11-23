@@ -24,7 +24,7 @@ export function HeroSection() {
               <Link href="/login">Get started as a Car Owner</Link>
             </Button>
             <Button size="lg" variant="outline" className="text-base" asChild>
-              <Link href="/login?type=workshop">For workshops</Link>
+              <Link href="/workshop/login">For workshops</Link>
             </Button>
           </div>
           <p className="text-sm text-muted-foreground flex items-center gap-2">
