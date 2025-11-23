@@ -70,7 +70,7 @@ export default function ResetPasswordPage() {
   return (
     <div className="min-h-screen bg-background flex">
       {/* Left Side - Brand Section */}
-      <div className="flex-1 hidden lg:flex bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-8 lg:p-12 flex-col justify-between text-white">
+      <div className="flex-1 hidden lg:flex bg-linear-to-br from-slate-900 via-blue-900 to-slate-900 p-8 lg:p-12 flex-col justify-between text-white">
         <Link href="/" className="flex items-center gap-2">
           <Car className="h-8 w-8 text-teal-400" />
           <span className="text-2xl font-bold">AutoCare+</span>
@@ -89,7 +89,7 @@ export default function ResetPasswordPage() {
 
           <div className="space-y-4 pt-8 border-t border-slate-800">
             <div className="flex items-start gap-3">
-              <div className="w-2 h-2 bg-teal-400 rounded-full mt-2 flex-shrink-0"></div>
+              <div className="w-2 h-2 bg-teal-400 rounded-full mt-2 shrink-0"></div>
               <div>
                 <p className="font-semibold text-white">Strong Security</p>
                 <p className="text-sm text-gray-400">
@@ -98,7 +98,7 @@ export default function ResetPasswordPage() {
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <div className="w-2 h-2 bg-teal-400 rounded-full mt-2 flex-shrink-0"></div>
+              <div className="w-2 h-2 bg-teal-400 rounded-full mt-2 shrink-0"></div>
               <div>
                 <p className="font-semibold text-white">Instant Access</p>
                 <p className="text-sm text-gray-400">

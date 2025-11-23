@@ -1,6 +1,9 @@
-import { LoginForm } from "@/components/login-form"
-import { Car } from 'lucide-react'
-import Link from 'next/link'
+"use client";
+
+import { LoginForm } from "@/components/login-form";
+import { Car } from "lucide-react";
+import Link from "next/link";
+import { Suspense } from "react";
 
 export default function LoginPage() {
   return (
@@ -17,7 +20,8 @@ export default function LoginPage() {
             Welcome back to smarter vehicle care
           </h1>
           <p className="text-lg text-slate-300 max-w-md text-pretty leading-relaxed">
-            Access your vehicle dashboard, maintenance schedule, and service history all in one place.
+            Access your vehicle dashboard, maintenance schedule, and service
+            history all in one place.
           </p>
         </div>
 
@@ -37,9 +41,11 @@ export default function LoginPage() {
       {/* Right Side - Login Form */}
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
-          <LoginForm type="Driver" />
+          <Suspense fallback={<div>Loading...</div>}>
+            <LoginForm type="Driver" />
+          </Suspense>
         </div>
       </div>
     </div>
-  )
+  );
 }

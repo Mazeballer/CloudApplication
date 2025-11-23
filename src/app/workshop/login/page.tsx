@@ -1,6 +1,7 @@
 import { LoginForm } from "@/components/login-form";
 import { Wrench } from "lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
 
 export default function WorkshopLoginPage() {
   return (
@@ -38,7 +39,9 @@ export default function WorkshopLoginPage() {
       {/* Right Side - Login Form */}
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
-          <LoginForm type="Workshop" />
+          <Suspense fallback={<div>Loading...</div>}>
+            <LoginForm type="Driver" />
+          </Suspense>
         </div>
       </div>
     </div>
