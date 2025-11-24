@@ -40,7 +40,7 @@ export default function WorkshopLoginPage() {
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
           <Suspense fallback={<div>Loading...</div>}>
-            <LoginForm type="Driver" />
+            <LoginForm type="Workshop" />
           </Suspense>
         </div>
       </div>

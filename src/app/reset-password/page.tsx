@@ -1,7 +1,9 @@
+// src/app/reset-password/page.tsx
 "use client";
 
 import { useState } from "react";
 import Link from "next/link";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -13,7 +15,15 @@ import {
 } from "@/components/ui/card";
 import { ArrowLeft, CheckCircle2, Eye, EyeOff, Car } from "lucide-react";
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+
 export default function ResetPasswordPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  const email = searchParams.get("email") ?? "";
+  const token = searchParams.get("token") ?? "";
+
   const [password, setPassword] = useState<string>("");
   const [confirmPassword, setConfirmPassword] = useState<string>("");
   const [showPassword, setShowPassword] = useState<boolean>(false);
@@ -22,6 +32,7 @@ export default function ResetPasswordPage() {
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [passwordError, setPasswordError] = useState<string>("");
+  const [serverError, setServerError] = useState<string>("");
 
   const validatePassword = (pwd: string) => {
     if (pwd.length < 8) {
@@ -39,8 +50,15 @@ export default function ResetPasswordPage() {
     return "";
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setPasswordError("");
+    setServerError("");
+
+    if (!email || !token) {
+      setPasswordError("Reset link is invalid or has expired");
+      return;
+    }
 
     if (!password || !confirmPassword) {
       setPasswordError("Please fill in all fields");
@@ -58,19 +76,55 @@ export default function ResetPasswordPage() {
       return;
     }
 
+    if (!API_BASE_URL) {
+      console.error("NEXT_PUBLIC_API_URL is not set");
+      setServerError("Configuration error. Please contact support.");
+      return;
+    }
+
     setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/auth/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          token,
+          newPassword: password,
+          confirmPassword,
+        }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        console.error("Reset password failed", text);
+        setServerError(
+          "Failed to reset password. The link may be invalid or expired."
+        );
+        return;
+      }
+
       setIsSubmitted(true);
-    }, 1500);
+      setPassword("");
+      setConfirmPassword("");
+
+      // Redirect to login after a short delay
+      setTimeout(() => {
+        router.push("/login");
+      }, 2000);
+    } catch (err) {
+      console.error(err);
+      setServerError("Something went wrong. Please try again in a moment.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-background flex">
       {/* Left Side - Brand Section */}
-      <div className="flex-1 hidden lg:flex bg-linear-to-br from-slate-900 via-blue-900 to-slate-900 p-8 lg:p-12 flex-col justify-between text-white">
+      <div className="flex-1 hidden lg:flex bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-8 lg:p-12 flex-col justify-between text-white">
         <Link href="/" className="flex items-center gap-2">
           <Car className="h-8 w-8 text-teal-400" />
           <span className="text-2xl font-bold">AutoCare+</span>
@@ -89,7 +143,7 @@ export default function ResetPasswordPage() {
 
           <div className="space-y-4 pt-8 border-t border-slate-800">
             <div className="flex items-start gap-3">
-              <div className="w-2 h-2 bg-teal-400 rounded-full mt-2 shrink-0"></div>
+              <div className="w-2 h-2 bg-teal-400 rounded-full mt-2 flex-shrink-0"></div>
               <div>
                 <p className="font-semibold text-white">Strong Security</p>
                 <p className="text-sm text-gray-400">
@@ -98,7 +152,7 @@ export default function ResetPasswordPage() {
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <div className="w-2 h-2 bg-teal-400 rounded-full mt-2 shrink-0"></div>
+              <div className="w-2 h-2 bg-teal-400 rounded-full mt-2 flex-shrink-0"></div>
               <div>
                 <p className="font-semibold text-white">Instant Access</p>
                 <p className="text-sm text-gray-400">
@@ -138,7 +192,7 @@ export default function ResetPasswordPage() {
 
           <CardContent>
             {!isSubmitted ? (
-              <div className="space-y-6">
+              <form onSubmit={handleSubmit} className="space-y-6">
                 {/* New Password */}
                 <div className="space-y-2">
                   <label htmlFor="password" className="text-sm font-medium">
@@ -152,6 +206,7 @@ export default function ResetPasswordPage() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       className="bg-muted pr-10"
+                      autoComplete="new-password"
                     />
                     <button
                       type="button"
@@ -183,6 +238,7 @@ export default function ResetPasswordPage() {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       className="bg-muted pr-10"
+                      autoComplete="new-password"
                     />
                     <button
                       type="button"
@@ -237,7 +293,7 @@ export default function ResetPasswordPage() {
                   </ul>
                 </div>
 
-                {/* Error Message */}
+                {/* Validation Error */}
                 {passwordError && (
                   <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 rounded-lg p-4">
                     <p className="text-sm text-red-900 dark:text-red-300">
@@ -246,8 +302,17 @@ export default function ResetPasswordPage() {
                   </div>
                 )}
 
+                {/* Server Error */}
+                {serverError && (
+                  <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-lg p-4">
+                    <p className="text-sm text-amber-900 dark:text-amber-300">
+                      {serverError}
+                    </p>
+                  </div>
+                )}
+
                 <Button
-                  onClick={handleSubmit}
+                  type="submit"
                   className="w-full bg-primary hover:bg-primary/90 text-white"
                   disabled={isLoading || !password || !confirmPassword}
                 >
@@ -255,6 +320,7 @@ export default function ResetPasswordPage() {
                 </Button>
 
                 <Button
+                  type="button"
                   variant="ghost"
                   className="w-full flex items-center justify-center gap-2"
                   onClick={() => window.history.back()}
@@ -262,7 +328,7 @@ export default function ResetPasswordPage() {
                   <ArrowLeft className="w-4 h-4" />
                   Back to sign in
                 </Button>
-              </div>
+              </form>
             ) : (
               <div className="space-y-6">
                 <div className="flex justify-center">
@@ -282,7 +348,7 @@ export default function ResetPasswordPage() {
                 </div>
 
                 <Button
-                  onClick={() => (window.location.href = "/login")}
+                  onClick={() => router.push("/login")}
                   className="w-full bg-primary hover:bg-primary/90 text-white"
                 >
                   Go to sign in

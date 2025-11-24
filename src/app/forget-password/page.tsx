@@ -1,3 +1,4 @@
+// src/app/forget-password/page.tsx
 "use client";
 
 import { useState } from "react";
@@ -13,25 +14,55 @@ import {
 } from "@/components/ui/card";
 import { ArrowLeft, CheckCircle2, Car } from "lucide-react";
 
+// USE YOUR EXISTING ENV VARIABLE
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState<string>("");
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!email) return;
-    setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
+    setIsLoading(true);
+    setError(null);
+
+    if (!API_BASE_URL) {
+      console.error("NEXT_PUBLIC_API_URL is not set");
+      setError("Configuration error. Please contact support.");
       setIsLoading(false);
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      // Backend should return 200 OK even if email does not exist
+      if (!res.ok) {
+        console.error("Forgot password failed", await res.text());
+        throw new Error("Request failed");
+      }
+
       setIsSubmitted(true);
-    }, 1500);
+    } catch (err) {
+      console.error(err);
+      setError("Something went wrong. Please try again in a moment.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleReset = () => {
     setEmail("");
     setIsSubmitted(false);
+    setError(null);
   };
 
   return (
@@ -49,7 +80,7 @@ export default function ForgotPasswordPage() {
               Reset your password
             </h1>
             <p className="text-gray-400 text-lg">
-              No worries! We'll help you regain access to your dashboard.
+              No worries. We will help you regain access to your dashboard.
             </p>
           </div>
 
@@ -57,7 +88,7 @@ export default function ForgotPasswordPage() {
             <div className="flex items-start gap-3">
               <div className="w-2 h-2 bg-teal-400 rounded-full mt-2 flex-shrink-0"></div>
               <div>
-                <p className="font-semibold text-white">Quick & Secure</p>
+                <p className="font-semibold text-white">Quick and secure</p>
                 <p className="text-sm text-gray-400">
                   Your account security is our priority
                 </p>
@@ -66,7 +97,7 @@ export default function ForgotPasswordPage() {
             <div className="flex items-start gap-3">
               <div className="w-2 h-2 bg-teal-400 rounded-full mt-2 flex-shrink-0"></div>
               <div>
-                <p className="font-semibold text-white">Instant Recovery</p>
+                <p className="font-semibold text-white">Instant recovery</p>
                 <p className="text-sm text-gray-400">
                   Get back to your dashboard in minutes
                 </p>
@@ -97,14 +128,14 @@ export default function ForgotPasswordPage() {
             <CardTitle className="text-2xl">Forgot your password?</CardTitle>
             <CardDescription>
               {isSubmitted
-                ? "Check your email for reset instructions"
-                : "Enter your email address and we'll send you a link to reset your password"}
+                ? "If an account exists with that email, you will receive a reset link."
+                : "Enter your email address and we will send you a link to reset your password."}
             </CardDescription>
           </CardHeader>
 
           <CardContent>
             {!isSubmitted ? (
-              <div className="space-y-6">
+              <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-2">
                   <label htmlFor="email" className="text-sm font-medium">
                     Email address
@@ -116,11 +147,21 @@ export default function ForgotPasswordPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="bg-muted"
+                    autoComplete="email"
+                    required
                   />
                 </div>
 
+                {error && (
+                  <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 rounded-lg p-4">
+                    <p className="text-sm text-red-900 dark:text-red-300">
+                      {error}
+                    </p>
+                  </div>
+                )}
+
                 <Button
-                  onClick={handleSubmit}
+                  type="submit"
                   className="w-full bg-primary hover:bg-primary/90 text-white"
                   disabled={isLoading || !email}
                 >
@@ -128,6 +169,7 @@ export default function ForgotPasswordPage() {
                 </Button>
 
                 <Button
+                  type="button"
                   variant="ghost"
                   className="w-full flex items-center justify-center gap-2"
                   onClick={() => window.history.back()}
@@ -135,7 +177,7 @@ export default function ForgotPasswordPage() {
                   <ArrowLeft className="w-4 h-4" />
                   Back to sign in
                 </Button>
-              </div>
+              </form>
             ) : (
               <div className="space-y-6">
                 <div className="flex justify-center">
@@ -149,20 +191,22 @@ export default function ForgotPasswordPage() {
                     Check your email
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    We've sent a password reset link to <br />
-                    <span className="font-medium">{email}</span>
+                    If an account exists for{" "}
+                    <span className="font-medium">{email}</span>, we have sent a
+                    password reset link.
                   </p>
                 </div>
 
                 <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 rounded-lg p-4">
                   <p className="text-sm text-blue-900 dark:text-blue-300">
-                    The link expires in 24 hours. If you don't see the email,
+                    The link expires in 24 hours. If you do not see the email,
                     check your spam folder.
                   </p>
                 </div>
 
                 <div className="space-y-3">
                   <Button
+                    type="button"
                     variant="outline"
                     className="w-full"
                     onClick={handleReset}
@@ -170,6 +214,7 @@ export default function ForgotPasswordPage() {
                     Use different email
                   </Button>
                   <Button
+                    type="button"
                     variant="ghost"
                     className="w-full flex items-center justify-center gap-2"
                     onClick={() => window.history.back()}

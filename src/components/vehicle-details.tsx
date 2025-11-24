@@ -7,10 +7,10 @@ import { Progress } from "@/components/ui/progress";
 import {
   ArrowLeft,
   Calendar,
-  Gauge,
   Wrench,
   AlertTriangle,
   Bell,
+  Gauge,
 } from "lucide-react";
 import Link from "next/link";
 import { useVehicles } from "@/contexts/VehiclesContext";
@@ -29,6 +29,28 @@ type RawRecord = {
   serviceMileage: number;
   remarks?: string;
 };
+
+type PartStatus = "good" | "warning" | "critical" | "unknown";
+
+type PartConfig = {
+  key: string; // substring to match in serviceName
+  label: string;
+  expectedLifeMonths: number;
+};
+
+type PartHealth = {
+  name: string;
+  healthPercent: number;
+  ageMonths: number | null;
+  status: PartStatus;
+  lastServiceDate?: string;
+};
+
+const PARTS_CONFIG: PartConfig[] = [
+  { key: "oil", label: "Engine oil", expectedLifeMonths: 6 },
+  { key: "brake", label: "Brake pads", expectedLifeMonths: 24 },
+  { key: "tyre", label: "Tyres", expectedLifeMonths: 36 },
+];
 
 export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
   const { vehicles } = useVehicles();
@@ -57,7 +79,6 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
         const data = await res.json();
         const userRecords: RawRecord[] = data.byUser[user.id] ?? [];
 
-        // Only take records for THIS vehicle
         const vehicleRecords = userRecords.filter(
           (r) => r.vehicleId === vehicleId
         );
@@ -84,13 +105,8 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
     );
   }
 
-  // ------------------------------------------------------------------
-  // REAL DATA CALCULATIONS
-  // ------------------------------------------------------------------
-
   const currentMileage = parseInt(vehicle.mileage.replace(/[^\d]/g, "")) || 0;
 
-  // Completed services for this vehicle
   const completed = records
     .filter((r) => r.status === "Completed")
     .sort(
@@ -98,40 +114,100 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
         new Date(b.serviceDate).getTime() - new Date(a.serviceDate).getTime()
     );
 
-  // Scheduled (upcoming maintenance)
   const scheduled = records.filter((r) => r.status === "Scheduled");
 
-  // Determine last completed service mileage
   const lastServiceMileage =
     completed.length > 0 ? completed[0].serviceMileage : currentMileage;
 
-  // Assume service interval = 5000 km (you can store this in DB later)
+  // This is only for display in the header
   const SERVICE_INTERVAL = 5000;
   const nextServiceAt = lastServiceMileage + SERVICE_INTERVAL;
-  const kmRemaining = Math.max(nextServiceAt - currentMileage, 0);
 
-  // Dynamic alert
-  const alerts =
-    kmRemaining < 1000
-      ? [
-          {
-            type: "warning",
-            message: `Service due in ${kmRemaining} km`,
-            date: "Soon",
-          },
-        ]
-      : [];
-
-  // Recent services → completed list
   const recentServices = completed.slice(0, 3);
 
-  // Service progress bar
-  const progress = Math.min(
-    ((currentMileage - lastServiceMileage) / SERVICE_INTERVAL) * 100,
-    100
-  );
-
   const formatNumber = (n: number) => n.toLocaleString();
+
+  // ------------------------------------------------------------------
+  // Parts health based on age (time since last service)
+  // ------------------------------------------------------------------
+
+  const now = new Date();
+
+  const partsHealth: PartHealth[] = PARTS_CONFIG.map((part) => {
+    const lastService = completed.find((r) =>
+      r.serviceName.toLowerCase().includes(part.key.toLowerCase())
+    );
+
+    if (!lastService) {
+      return {
+        name: part.label,
+        healthPercent: 0,
+        ageMonths: null,
+        status: "unknown",
+      };
+    }
+
+    const serviceDate = new Date(lastService.serviceDate);
+    const diffMs = now.getTime() - serviceDate.getTime();
+    const ageDays = diffMs / (1000 * 60 * 60 * 24);
+    const ageMonths = ageDays / 30;
+
+    const expectedMonths = part.expectedLifeMonths;
+    const usedPercentByAge = Math.min(
+      Math.max((ageMonths / expectedMonths) * 100, 0),
+      100
+    );
+
+    const healthPercent = Math.max(0, Math.min(100, 100 - usedPercentByAge));
+
+    let status: PartStatus;
+    if (healthPercent >= 70) status = "good";
+    else if (healthPercent >= 40) status = "warning";
+    else status = "critical";
+
+    return {
+      name: part.label,
+      healthPercent,
+      ageMonths: Math.floor(ageMonths),
+      status,
+      lastServiceDate: lastService.serviceDate,
+    };
+  });
+
+  const trackedParts = partsHealth.filter((p) => p.status !== "unknown");
+
+  let overallHealthPercent = 100;
+
+  if (trackedParts.length > 0) {
+    overallHealthPercent =
+      trackedParts.reduce((sum, p) => sum + p.healthPercent, 0) /
+      trackedParts.length;
+    overallHealthPercent = Math.max(0, Math.min(100, overallHealthPercent));
+  }
+
+  const overallStatus =
+    overallHealthPercent >= 80
+      ? "Good"
+      : overallHealthPercent >= 50
+      ? "Fair"
+      : "Poor";
+
+  const overallBadgeVariant =
+    overallStatus === "Good"
+      ? "default"
+      : overallStatus === "Fair"
+      ? "secondary"
+      : "destructive";
+
+  const getPartBadgeVariant = (status: PartStatus) => {
+    if (status === "good") return "outline";
+    if (status === "warning") return "secondary";
+    if (status === "critical") return "destructive";
+    return "outline";
+  };
+
+  // Alerts based on critical parts only
+  const criticalParts = partsHealth.filter((p) => p.status === "critical");
 
   // ------------------------------------------------------------------
 
@@ -145,7 +221,7 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
         </Link>
       </Button>
 
-      {/* Vehicle Header */}
+      {/* Vehicle Header + Overall Component Health */}
       <Card className="p-6">
         <div className="flex flex-col lg:flex-row gap-6">
           <img
@@ -192,43 +268,53 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
               </div>
             </div>
 
-            {/* Vehicle Health */}
+            {/* Overall Component Health by age */}
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium">Service Interval Progress</p>
-                <p className="text-2xl font-bold text-primary">
-                  {progress.toFixed(0)}%
-                </p>
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-2">
+                  <Gauge className="h-4 w-4 text-primary" />
+                  <p className="text-sm font-medium">Component health</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <p className="text-2xl font-bold text-primary">
+                    {overallHealthPercent.toFixed(0)}%
+                  </p>
+                  <Badge variant={overallBadgeVariant}>{overallStatus}</Badge>
+                </div>
               </div>
-              <Progress value={progress} className="h-3" />
+              <Progress value={overallHealthPercent} className="h-3" />
+              <p className="text-xs text-muted-foreground">
+                Calculated from how long key parts have been in use since their
+                last replacement.
+              </p>
             </div>
           </div>
         </div>
       </Card>
 
-      {/* Alerts */}
-      {alerts.length > 0 && (
+      {/* Alerts based on critical parts only */}
+      {criticalParts.length > 0 && (
         <Card className="p-6">
           <div className="flex items-center gap-2 mb-4">
             <AlertTriangle className="h-5 w-5 text-amber-500" />
-            <h2 className="text-xl font-bold">Active Alerts</h2>
+            <h2 className="text-xl font-bold">Active alerts</h2>
           </div>
 
           <div className="space-y-3">
-            {alerts.map((alert, index) => (
-              <Card key={index} className="p-4 border-amber-500">
-                <div className="flex items-start gap-3">
-                  <Bell className="h-5 w-5 text-amber-500 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="font-semibold mb-1">{alert.message}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {alert.date}
-                    </p>
-                  </div>
-                  <Badge variant="secondary">{alert.type}</Badge>
+            <Card className="p-4 border-amber-500">
+              <div className="flex items-start gap-3">
+                <Bell className="h-5 w-5 text-amber-500 mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-semibold mb-1">
+                    Critical components need attention
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {criticalParts.map((p) => p.name).join(", ")}
+                  </p>
                 </div>
-              </Card>
-            ))}
+                <Badge variant="destructive">Critical</Badge>
+              </div>
+            </Card>
           </div>
         </Card>
       )}
@@ -238,7 +324,7 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
         <Card className="p-6">
           <div className="flex items-center gap-2 mb-4">
             <Calendar className="h-5 w-5 text-primary" />
-            <h2 className="text-xl font-bold">Upcoming Maintenance</h2>
+            <h2 className="text-xl font-bold">Upcoming maintenance</h2>
           </div>
 
           {scheduled.length === 0 ? (
@@ -264,7 +350,7 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
         <Card className="p-6">
           <div className="flex items-center gap-2 mb-4">
             <Wrench className="h-5 w-5 text-primary" />
-            <h2 className="text-xl font-bold">Recent Services</h2>
+            <h2 className="text-xl font-bold">Recent services</h2>
           </div>
 
           {recentServices.length === 0 ? (
@@ -286,24 +372,54 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
           )}
 
           <Button variant="outline" className="w-full" asChild>
-            <Link href="/dashboard/history">View Full History</Link>
+            <Link href="/dashboard/history">View full history</Link>
           </Button>
         </Card>
       </div>
 
-      {/* Service Interval */}
+      {/* Car parts health by age */}
       <Card className="p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Gauge className="h-5 w-5 text-primary" />
-          <h2 className="text-xl font-bold">Next Service Countdown</h2>
-        </div>
+        <h2 className="text-xl font-bold mb-4">Car parts health</h2>
 
-        <div className="space-y-2">
-          <p className="text-muted-foreground">
-            Remaining: {formatNumber(kmRemaining)} km
+        {partsHealth.every((p) => p.status === "unknown") ? (
+          <p className="text-sm text-muted-foreground">
+            No component data yet. Once your services include engine oil, brake
+            pads, or tyres, their health will appear here.
           </p>
-          <Progress value={progress} className="h-3" />
-        </div>
+        ) : (
+          <div className="space-y-4">
+            {partsHealth.map((part) => (
+              <div key={part.name} className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">{part.name}</p>
+                    {part.ageMonths != null && (
+                      <p className="text-xs text-muted-foreground">
+                        Last changed about {part.ageMonths} month
+                        {part.ageMonths === 1 ? "" : "s"} ago
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold">
+                      {part.healthPercent.toFixed(0)}%
+                    </p>
+                    <Badge variant={getPartBadgeVariant(part.status)}>
+                      {part.status === "good"
+                        ? "Good"
+                        : part.status === "warning"
+                        ? "Warning"
+                        : part.status === "critical"
+                        ? "Critical"
+                        : "Unknown"}
+                    </Badge>
+                  </div>
+                </div>
+                <Progress value={part.healthPercent} className="h-2" />
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
     </div>
   );
