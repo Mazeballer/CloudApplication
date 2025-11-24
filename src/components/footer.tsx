@@ -1,30 +1,30 @@
-import { Car, Linkedin, Github, Instagram } from "lucide-react";
+import { Car, Linkedin, Github, Instagram } from 'lucide-react';
 
 export function Footer() {
   const footerLinks = {
     product: [
-      { label: "Features", href: "#features" },
-      { label: "Pricing", href: "#pricing" },
-      { label: "How it works", href: "#how-it-works" },
-      { label: "Workshops", href: "#workshops" },
+      { label: 'Features', href: '#features' },
+      { label: 'Pricing', href: '#pricing' },
+      { label: 'How it works', href: '#how-it-works' },
+      { label: 'Workshops', href: '#workshops' },
     ],
     developers: [
-      { label: "API Documentation", href: "#" },
-      { label: "API Reference", href: "#" },
-      { label: "Status Page", href: "#" },
-      { label: "SDK Downloads", href: "#" },
+      { label: 'API Documentation', href: '#' },
+      { label: 'API Reference', href: '#' },
+      { label: 'Status Page', href: '#' },
+      { label: 'SDK Downloads', href: '#' },
     ],
     company: [
-      { label: "About Us", href: "#" },
-      { label: "Careers", href: "#" },
-      { label: "Blog", href: "#" },
-      { label: "Contact", href: "#" },
+      { label: 'About Us', href: '#' },
+      { label: 'Careers', href: '#' },
+      { label: 'Blog', href: '#' },
+      { label: 'Contact', href: '#' },
     ],
     support: [
-      { label: "Help Center", href: "#" },
-      { label: "Support Portal", href: "#" },
-      { label: "Community", href: "#" },
-      { label: "Privacy Policy", href: "#" },
+      { label: 'Help Center', href: '#' },
+      { label: 'Support Portal', href: '#' },
+      { label: 'Community', href: '#' },
+      { label: 'Privacy Policy', href: '#' },
     ],
   };
 
@@ -40,7 +40,7 @@ export function Footer() {
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed mb-4">
               Cloud-powered vehicle service and maintenance management for
-              drivers and workshops. Built on AWS infrastructure.
+              drivers and workshops.
             </p>
             <div className="flex gap-4">
               <a
@@ -135,8 +135,7 @@ export function Footer() {
 
         <div className="pt-8 border-t text-center">
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} AutoCare+. All rights reserved. Built
-            with Next.js, ASP.NET, AWS RDS & Neon DB.
+            © {new Date().getFullYear()} AutoCare+. All rights reserved.
           </p>
         </div>
       </div>

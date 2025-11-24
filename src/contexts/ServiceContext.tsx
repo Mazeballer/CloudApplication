@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, {
   createContext,
@@ -6,13 +6,13 @@ import React, {
   useEffect,
   useState,
   ReactNode,
-} from "react";
+} from 'react';
 import {
   getWorkshopService,
   addService,
   getAllWorkshopServices,
-} from "@/lib/service";
-import { useAuth } from "@/lib/auth";
+} from '@/lib/service';
+import { useAuth } from '@/lib/auth';
 
 export interface Service {
   id: string;
@@ -21,7 +21,8 @@ export interface Service {
   description: string;
   durationMinutes: number;
   price: number;
-  status: "Active" | "Inactive"; // ← FIXED
+  status: 'Active' | 'Inactive';
+  componentTypes?: string[];
 }
 
 interface WorkshopServiceGroup {
@@ -73,13 +74,14 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
         description: s.description,
         durationMinutes: s.durationMinutes,
         price: s.price,
-        status: s.status ?? "Active",
+        status: s.status ?? 'Active',
+        componentTypes: s.componentTypes ?? [],
       }));
 
       setServicesForCurrentWorkshop(formatted);
       setTotalCurrentServices(formatted.length);
     } catch (err: any) {
-      setError(err.message || "Failed to load current workshop services");
+      setError(err.message || 'Failed to load current workshop services');
     } finally {
       setLoading(false);
     }
@@ -103,7 +105,8 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
             description: s.description,
             durationMinutes: s.durationMinutes,
             price: s.price,
-            status: s.status ?? "Active",
+            status: s.status ?? 'Active',
+            componentTypes: s.componentTypes ?? [],
           }));
         });
 
@@ -118,7 +121,7 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
 
       setAllWorkshopServices(formatted);
     } catch (err: any) {
-      setError(err.message || "Failed to load services for all workshops");
+      setError(err.message || 'Failed to load services for all workshops');
     } finally {
       setLoading(false);
     }
@@ -131,7 +134,7 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (authLoading) return;
-    if (userType === "Workshop") {
+    if (userType === 'Workshop') {
       refreshCurrentWorkshopServices();
     }
     refreshAllWorkshopServices();
@@ -159,6 +162,6 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
 export function useServices() {
   const ctx = useContext(ServiceContext);
   if (!ctx)
-    throw new Error("useServices must be used inside <ServiceProvider>");
+    throw new Error('useServices must be used inside <ServiceProvider>');
   return ctx;
 }

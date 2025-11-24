@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import {
   ArrowLeft,
   Calendar,
@@ -11,11 +11,11 @@ import {
   AlertTriangle,
   Bell,
   Gauge,
-} from "lucide-react";
-import Link from "next/link";
-import { useVehicles } from "@/contexts/VehiclesContext";
-import { useEffect, useState } from "react";
-import { getCurrentUser } from "@/lib/auth";
+} from 'lucide-react';
+import Link from 'next/link';
+import { useVehicles } from '@/contexts/VehiclesContext';
+import { useEffect, useState } from 'react';
+import { getCurrentUser } from '@/lib/auth';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -30,7 +30,7 @@ type RawRecord = {
   remarks?: string;
 };
 
-type PartStatus = "good" | "warning" | "critical" | "unknown";
+type PartStatus = 'good' | 'warning' | 'critical' | 'unknown';
 
 type PartConfig = {
   key: string; // substring to match in serviceName
@@ -47,9 +47,9 @@ type PartHealth = {
 };
 
 const PARTS_CONFIG: PartConfig[] = [
-  { key: "oil", label: "Engine oil", expectedLifeMonths: 6 },
-  { key: "brake", label: "Brake pads", expectedLifeMonths: 24 },
-  { key: "tyre", label: "Tyres", expectedLifeMonths: 36 },
+  { key: 'oil', label: 'Engine oil', expectedLifeMonths: 6 },
+  { key: 'brake', label: 'Brake pads', expectedLifeMonths: 24 },
+  { key: 'tyre', label: 'Tyres', expectedLifeMonths: 36 },
 ];
 
 export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
@@ -68,11 +68,11 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
 
       try {
         const res = await fetch(`${API_URL}/api/ServiceRecord/all`, {
-          credentials: "include",
+          credentials: 'include',
         });
 
         if (!res.ok) {
-          console.error("Failed to load service records:", res.status);
+          console.error('Failed to load service records:', res.status);
           return;
         }
 
@@ -85,7 +85,7 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
 
         setRecords(vehicleRecords);
       } catch (err) {
-        console.error("VehicleDetails fetch error:", err);
+        console.error('VehicleDetails fetch error:', err);
       } finally {
         setLoading(false);
       }
@@ -105,16 +105,16 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
     );
   }
 
-  const currentMileage = parseInt(vehicle.mileage.replace(/[^\d]/g, "")) || 0;
+  const currentMileage = parseInt(vehicle.mileage.replace(/[^\d]/g, '')) || 0;
 
   const completed = records
-    .filter((r) => r.status === "Completed")
+    .filter((r) => r.status === 'Completed')
     .sort(
       (a, b) =>
         new Date(b.serviceDate).getTime() - new Date(a.serviceDate).getTime()
     );
 
-  const scheduled = records.filter((r) => r.status === "Scheduled");
+  const scheduled = records.filter((r) => r.status === 'Scheduled');
 
   const lastServiceMileage =
     completed.length > 0 ? completed[0].serviceMileage : currentMileage;
@@ -143,7 +143,7 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
         name: part.label,
         healthPercent: 0,
         ageMonths: null,
-        status: "unknown",
+        status: 'unknown',
       };
     }
 
@@ -161,9 +161,9 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
     const healthPercent = Math.max(0, Math.min(100, 100 - usedPercentByAge));
 
     let status: PartStatus;
-    if (healthPercent >= 70) status = "good";
-    else if (healthPercent >= 40) status = "warning";
-    else status = "critical";
+    if (healthPercent >= 70) status = 'good';
+    else if (healthPercent >= 40) status = 'warning';
+    else status = 'critical';
 
     return {
       name: part.label,
@@ -174,7 +174,7 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
     };
   });
 
-  const trackedParts = partsHealth.filter((p) => p.status !== "unknown");
+  const trackedParts = partsHealth.filter((p) => p.status !== 'unknown');
 
   let overallHealthPercent = 100;
 
@@ -187,27 +187,27 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
 
   const overallStatus =
     overallHealthPercent >= 80
-      ? "Good"
+      ? 'Good'
       : overallHealthPercent >= 50
-      ? "Fair"
-      : "Poor";
+      ? 'Fair'
+      : 'Poor';
 
   const overallBadgeVariant =
-    overallStatus === "Good"
-      ? "default"
-      : overallStatus === "Fair"
-      ? "secondary"
-      : "destructive";
+    overallStatus === 'Good'
+      ? 'default'
+      : overallStatus === 'Fair'
+      ? 'secondary'
+      : 'destructive';
 
   const getPartBadgeVariant = (status: PartStatus) => {
-    if (status === "good") return "outline";
-    if (status === "warning") return "secondary";
-    if (status === "critical") return "destructive";
-    return "outline";
+    if (status === 'good') return 'outline';
+    if (status === 'warning') return 'secondary';
+    if (status === 'critical') return 'destructive';
+    return 'outline';
   };
 
   // Alerts based on critical parts only
-  const criticalParts = partsHealth.filter((p) => p.status === "critical");
+  const criticalParts = partsHealth.filter((p) => p.status === 'critical');
 
   // ------------------------------------------------------------------
 
@@ -225,7 +225,7 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
       <Card className="p-6">
         <div className="flex flex-col lg:flex-row gap-6">
           <img
-            src={vehicle.image || "/placeholder.svg"}
+            src={vehicle.image || '/placeholder.svg'}
             className="w-full lg:w-80 h-56 object-cover rounded-lg"
           />
 
@@ -273,7 +273,7 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
                   <Gauge className="h-4 w-4 text-primary" />
-                  <p className="text-sm font-medium">Component health</p>
+                  <p className="text-sm font-medium">Component Health</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <p className="text-2xl font-bold text-primary">
@@ -309,7 +309,7 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
                     Critical components need attention
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    {criticalParts.map((p) => p.name).join(", ")}
+                    {criticalParts.map((p) => p.name).join(', ')}
                   </p>
                 </div>
                 <Badge variant="destructive">Critical</Badge>
@@ -379,9 +379,9 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
 
       {/* Car parts health by age */}
       <Card className="p-6">
-        <h2 className="text-xl font-bold mb-4">Car parts health</h2>
+        <h2 className="text-xl font-bold mb-4">Car Parts Health</h2>
 
-        {partsHealth.every((p) => p.status === "unknown") ? (
+        {partsHealth.every((p) => p.status === 'unknown') ? (
           <p className="text-sm text-muted-foreground">
             No component data yet. Once your services include engine oil, brake
             pads, or tyres, their health will appear here.
@@ -396,7 +396,7 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
                     {part.ageMonths != null && (
                       <p className="text-xs text-muted-foreground">
                         Last changed about {part.ageMonths} month
-                        {part.ageMonths === 1 ? "" : "s"} ago
+                        {part.ageMonths === 1 ? '' : 's'} ago
                       </p>
                     )}
                   </div>
@@ -405,13 +405,13 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
                       {part.healthPercent.toFixed(0)}%
                     </p>
                     <Badge variant={getPartBadgeVariant(part.status)}>
-                      {part.status === "good"
-                        ? "Good"
-                        : part.status === "warning"
-                        ? "Warning"
-                        : part.status === "critical"
-                        ? "Critical"
-                        : "Unknown"}
+                      {part.status === 'good'
+                        ? 'Good'
+                        : part.status === 'warning'
+                        ? 'Warning'
+                        : part.status === 'critical'
+                        ? 'Critical'
+                        : 'Unknown'}
                     </Badge>
                   </div>
                 </div>

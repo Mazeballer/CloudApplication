@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { LoginForm } from "@/components/login-form";
-import { Car } from "lucide-react";
-import Link from "next/link";
-import { Suspense } from "react";
+import { LoginForm } from '@/components/login-form';
+import { Car } from 'lucide-react';
+import Link from 'next/link';
+import { Suspense } from 'react';
 
 export default function LoginPage() {
   return (

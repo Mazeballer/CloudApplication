@@ -3,46 +3,46 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion";
+} from '@/components/ui/accordion';
 
 export function FAQSection() {
   const faqs = [
     {
-      question: "How secure is my vehicle and maintenance data?",
+      question: 'How secure is my data on AutoCare+?',
       answer:
-        "We use enterprise-grade security with AWS RDS for data storage and ASP.NET API with industry-standard encryption. All data is encrypted at rest and in transit. We're compliant with major data protection regulations.",
+        'Your account and vehicle information are protected using modern security best practices. All sensitive data is encrypted in transit and at rest, and we apply strict access controls, regular backups, and continuous monitoring to keep your data safe.',
     },
     {
-      question: "What AWS services does AutoCare+ integrate with?",
+      question: 'Is AutoCare+ reliable for everyday and business use?',
       answer:
-        "AutoCare+ leverages AWS Lambda for serverless functions, SNS for notifications, Textract for invoice OCR, S3 for document storage, and CloudWatch for monitoring. All services are fully managed and scaled automatically.",
+        'Yes. AutoCare+ is built on a highly available cloud infrastructure designed to handle real world usage. We use automated backups, performance monitoring, and proactive maintenance to keep the platform stable and responsive for both drivers and workshops.',
     },
     {
-      question: "Can workshops set their own pricing?",
+      question: 'Can workshops set their own pricing?',
       answer:
-        "Yes! Workshops have full control over their service pricing, availability, and booking policies. Our platform simply facilitates the connection between drivers and workshops.",
+        'Yes. Workshops have full control over their service pricing, availability, and booking policies. AutoCare+ simply provides the tools to manage schedules, customers, and bookings in one place.',
     },
     {
-      question: "Is there a mobile app available?",
+      question: 'Can I use AutoCare+ on mobile devices?',
       answer:
-        "Yes, AutoCare+ is available on both iOS and Android. The mobile app offers the same functionality as the web platform with offline access to your maintenance history.",
+        'You can access AutoCare+ from any modern browser on desktop, tablet, or mobile. The interface is fully responsive, so you can view your bookings and maintenance history comfortably on the go.',
     },
     {
-      question: "How does workshop onboarding work?",
+      question: 'How does workshop onboarding work?',
       answer:
-        "Workshop onboarding is simple and takes about 15 minutes. You'll set up your profile, add services, configure availability, and integrate payment processing. Our support team is available to help at every step.",
+        'Onboarding is straightforward and only takes a short setup. You will create your workshop profile, add services, configure working hours, and connect your preferred payment options. Our support materials and team are available to guide you through each step.',
     },
     {
-      question: "What's the difference between Neon DB and AWS RDS?",
+      question: 'Is AutoCare+ suitable as my business grows?',
       answer:
-        "We use Neon DB for development and testing environments due to its excellent developer experience and serverless architecture. Production deployments run on AWS RDS for maximum reliability, performance, and enterprise features.",
+        'AutoCare+ is designed to scale with you. Whether you manage a single workshop or multiple branches, you can add more users, services, and locations without changing systems or migrating your data.',
     },
   ];
 
   return (
     <section
       id="resources"
-      className="container mx-auto px-18 py-16 md:py-24 bg-muted/30"
+      className="container mx-auto px-4 md:px-8 py-16 md:py-24 bg-muted/30"
     >
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-12">
@@ -50,7 +50,7 @@ export function FAQSection() {
             Frequently asked questions
           </h2>
           <p className="text-lg text-muted-foreground">
-            Everything you need to know about AutoCare+
+            Find quick answers about how AutoCare+ works
           </p>
         </div>
 

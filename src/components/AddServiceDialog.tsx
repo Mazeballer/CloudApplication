@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogContent,
@@ -11,24 +11,37 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
+} from '@/components/ui/dialog';
 import {
-  Select, // 👈 New Import
-  SelectContent, // 👈 New Import
-  SelectItem, // 👈 New Import
-  SelectTrigger, // 👈 New Import
-  SelectValue, // 👈 New Import
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Plus } from "lucide-react";
-import { addService } from "@/lib/service";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Plus } from 'lucide-react';
+import { addService } from '@/lib/service';
 
 interface AddServiceDialogProps {
   workshopId: string;
   onServiceAdded?: () => void;
 }
 
-const serviceCategories = ["Maintenance", "Diagnostics", "Repair"];
+const serviceCategories = ['Maintenance', 'Diagnostics', 'Repair'];
+
+// Must match backend ComponentType enum names
+const COMPONENT_TYPES = [
+  { value: 'EngineOil', label: 'Engine oil' },
+  { value: 'BrakePads', label: 'Brake pads' },
+  { value: 'Tyres', label: 'Tyres' },
+  { value: 'Battery', label: 'Battery' },
+  { value: 'AirFilter', label: 'Air filter' },
+  { value: 'CabinFilter', label: 'Cabin filter' },
+  { value: 'Coolant', label: 'Coolant system' },
+  { value: 'SparkPlugs', label: 'Spark plugs' },
+  { value: 'TransmissionFluid', label: 'Transmission fluid' },
+];
 
 export function AddServiceDialog({
   workshopId,
@@ -36,11 +49,20 @@ export function AddServiceDialog({
 }: AddServiceDialogProps) {
   const [open, setOpen] = useState(false);
 
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [duration, setDuration] = useState("");
-  const [price, setPrice] = useState("");
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [duration, setDuration] = useState('');
+  const [price, setPrice] = useState('');
   const [category, setCategory] = useState<string>(serviceCategories[0]);
+
+  // new, multi select components
+  const [componentTypes, setComponentTypes] = useState<string[]>([]);
+
+  const toggleComponent = (value: string) => {
+    setComponentTypes((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
+    );
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,8 +72,9 @@ export function AddServiceDialog({
       name,
       category,
       description,
-      durationMinutes: parseInt(duration),
+      durationMinutes: parseInt(duration, 10),
       price: parseFloat(price),
+      componentTypes, // send to backend
     };
 
     const res = await addService(service);
@@ -61,11 +84,12 @@ export function AddServiceDialog({
       setOpen(false);
 
       // reset fields
-      setName("");
-      setDescription("");
+      setName('');
+      setDescription('');
       setCategory(serviceCategories[0]);
-      setDuration("");
-      setPrice("");
+      setDuration('');
+      setPrice('');
+      setComponentTypes([]);
     } else {
       console.error(res.error);
     }
@@ -96,11 +120,11 @@ export function AddServiceDialog({
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Engine Oil Change"
+              placeholder="e.g. Full Service, Engine Oil Change"
             />
           </div>
 
-          {/* Service CATEGORY (NEW DROPDOWN) */}
+          {/* Service Category */}
           <div className="space-y-2">
             <Label htmlFor="category">Service Category *</Label>
             <Select required value={category} onValueChange={setCategory}>
@@ -138,6 +162,7 @@ export function AddServiceDialog({
               value={duration}
               onChange={(e) => setDuration(e.target.value)}
               placeholder="e.g. 60"
+              min={0}
             />
           </div>
 
@@ -151,7 +176,34 @@ export function AddServiceDialog({
               value={price}
               onChange={(e) => setPrice(e.target.value)}
               placeholder="e.g. 120"
+              min={0}
             />
+          </div>
+
+          {/* Related Components, multi select */}
+          <div className="space-y-2">
+            <Label>Components</Label>
+            <p className="text-xs text-muted-foreground">
+              Select all car components this service usually covers. For
+              example, Full Service might include engine oil, brake pads and
+              filters.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {COMPONENT_TYPES.map((ct) => (
+                <label
+                  key={ct.value}
+                  className="flex items-center gap-2 text-sm"
+                >
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-emerald-600 rounded border border-muted-foreground/40"
+                    checked={componentTypes.includes(ct.value)}
+                    onChange={() => toggleComponent(ct.value)}
+                  />
+                  <span>{ct.label}</span>
+                </label>
+              ))}
+            </div>
           </div>
 
           {/* Buttons */}
