@@ -115,13 +115,21 @@ export function BookServiceForm() {
   const { vehicles, loading: loadingVehicles } = useVehicles();
   const { servicesByWorkshop, loading: loadingServices } = useServices();
 
-  console.log(workshops);
-
   const services = selectedWorkshop
-    ? servicesByWorkshop[selectedWorkshop.id] || []
+    ? (servicesByWorkshop[selectedWorkshop.id] || []).filter(
+        (s: any) => s.status === "Active"
+      )
     : [];
 
+  console.log(
+    "Fetched active services for workshop:",
+    selectedWorkshop?.id,
+    services
+  );
+
   const handleWorkshopSelect = (workshop: any) => {
+    console.log("SELECTED WORKSHOP:", workshop);
+
     setSelectedWorkshop(workshop);
     setSelectedService(null); // reset service when selecting workshop
   };

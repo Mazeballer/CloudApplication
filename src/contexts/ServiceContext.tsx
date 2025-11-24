@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import React, {
   createContext,
@@ -6,22 +6,18 @@ import React, {
   useEffect,
   useState,
   ReactNode,
-} from 'react';
+} from "react";
 import {
   getWorkshopService,
   addService,
   getAllWorkshopServices,
-} from '@/lib/service';
-import { useAuth } from '@/lib/auth';
+} from "@/lib/service";
+import { useAuth } from "@/lib/auth";
 
-export interface Service {
-  id: string;
-  name: string;
-  category: string;
-  description: string;
-  durationMinutes: number;
-  price: number;
-  status: 'Active' | 'Inactive';
+import type { Service as ApiService } from "@/lib/service";
+
+export interface Service extends ApiService {
+  status: "Active" | "Inactive";
   componentTypes?: string[];
 }
 
@@ -74,14 +70,14 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
         description: s.description,
         durationMinutes: s.durationMinutes,
         price: s.price,
-        status: s.status ?? 'Active',
+        status: s.status ?? "Active",
         componentTypes: s.componentTypes ?? [],
       }));
 
       setServicesForCurrentWorkshop(formatted);
       setTotalCurrentServices(formatted.length);
     } catch (err: any) {
-      setError(err.message || 'Failed to load current workshop services');
+      setError(err.message || "Failed to load current workshop services");
     } finally {
       setLoading(false);
     }
@@ -90,28 +86,26 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
   const refreshAllWorkshopServices = async () => {
     try {
       setLoading(true);
+
+      // getAllWorkshopServices returns: Record<string, ApiService[]>
       const data = await getAllWorkshopServices();
 
-      const mapped: Record<string, Service[]> = {};
+      // Convert to context Service type (add status + componentTypes)
+      const mapped: Record<string, Service[]> = Object.fromEntries(
+        Object.entries(data).map(([workshopId, services]) => [
+          workshopId,
+          services.map((s) => ({
+            ...s,
+            status: (s as any).status ?? "Active",
+            componentTypes: (s as any).componentTypes ?? [],
+          })),
+        ])
+      );
 
-      Array.isArray(data) &&
-        data.forEach((group: any) => {
-          const workshopId = group.workshopProfileId;
-
-          mapped[workshopId] = group.services.map((s: any) => ({
-            id: s.id,
-            name: s.name,
-            category: s.category,
-            description: s.description,
-            durationMinutes: s.durationMinutes,
-            price: s.price,
-            status: s.status ?? 'Active',
-            componentTypes: s.componentTypes ?? [],
-          }));
-        });
-
+      // Save in state
       setServicesByWorkshop(mapped);
 
+      // Convert to WorkshopServiceGroup[]
       const formatted: WorkshopServiceGroup[] = Object.entries(mapped).map(
         ([workshopId, services]) => ({
           workshopId,
@@ -121,7 +115,7 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
 
       setAllWorkshopServices(formatted);
     } catch (err: any) {
-      setError(err.message || 'Failed to load services for all workshops');
+      setError(err.message || "Failed to load services for all workshops");
     } finally {
       setLoading(false);
     }
@@ -134,7 +128,7 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (authLoading) return;
-    if (userType === 'Workshop') {
+    if (userType === "Workshop") {
       refreshCurrentWorkshopServices();
     }
     refreshAllWorkshopServices();
@@ -162,6 +156,6 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
 export function useServices() {
   const ctx = useContext(ServiceContext);
   if (!ctx)
-    throw new Error('useServices must be used inside <ServiceProvider>');
+    throw new Error("useServices must be used inside <ServiceProvider>");
   return ctx;
 }
