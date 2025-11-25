@@ -24,16 +24,28 @@ type RawRecord = {
   vehicleId: string;
   serviceName: string;
   workshopName: string;
-  status: string; // Scheduled, Completed, etc.
+  status: string;
   serviceDate: string;
   serviceMileage: number;
   remarks?: string;
+  componentTypes?: string[];
 };
 
 type PartStatus = 'good' | 'warning' | 'critical' | 'unknown';
 
+type PartKey =
+  | 'EngineOil'
+  | 'BrakePads'
+  | 'Tyres'
+  | 'Battery'
+  | 'AirFilter'
+  | 'CabinFilter'
+  | 'Coolant'
+  | 'SparkPlugs'
+  | 'TransmissionFluid';
+
 type PartConfig = {
-  key: string; // substring to match in serviceName
+  key: PartKey;
   label: string;
   expectedLifeMonths: number;
 };
@@ -47,9 +59,19 @@ type PartHealth = {
 };
 
 const PARTS_CONFIG: PartConfig[] = [
-  { key: 'oil', label: 'Engine oil', expectedLifeMonths: 6 },
-  { key: 'brake', label: 'Brake pads', expectedLifeMonths: 24 },
-  { key: 'tyre', label: 'Tyres', expectedLifeMonths: 36 },
+  { key: 'EngineOil', label: 'Engine oil', expectedLifeMonths: 6 },
+  { key: 'BrakePads', label: 'Brake pads', expectedLifeMonths: 24 },
+  { key: 'Tyres', label: 'Tyres', expectedLifeMonths: 36 },
+  { key: 'Battery', label: 'Battery', expectedLifeMonths: 48 },
+  { key: 'AirFilter', label: 'Air filter', expectedLifeMonths: 18 },
+  { key: 'CabinFilter', label: 'Cabin filter', expectedLifeMonths: 18 },
+  { key: 'Coolant', label: 'Coolant system', expectedLifeMonths: 48 },
+  { key: 'SparkPlugs', label: 'Spark plugs', expectedLifeMonths: 48 },
+  {
+    key: 'TransmissionFluid',
+    label: 'Transmission fluid',
+    expectedLifeMonths: 60,
+  },
 ];
 
 export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
@@ -127,17 +149,17 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
 
   const formatNumber = (n: number) => n.toLocaleString();
 
-  // ------------------------------------------------------------------
-  // Parts health based on age (time since last service)
-  // ------------------------------------------------------------------
+  // Parts health based on age (time since last service that included that component)
 
   const now = new Date();
 
   const partsHealth: PartHealth[] = PARTS_CONFIG.map((part) => {
+    // Look for the most recent completed service that included this component
     const lastService = completed.find((r) =>
-      r.serviceName.toLowerCase().includes(part.key.toLowerCase())
+      r.componentTypes?.includes(part.key)
     );
 
+    // If this part has never been serviced, we do not know its health
     if (!lastService) {
       return {
         name: part.label,
@@ -153,6 +175,8 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
     const ageMonths = ageDays / 30;
 
     const expectedMonths = part.expectedLifeMonths;
+
+    // How much of its lifespan has been used
     const usedPercentByAge = Math.min(
       Math.max((ageMonths / expectedMonths) * 100, 0),
       100
@@ -168,7 +192,7 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
     return {
       name: part.label,
       healthPercent,
-      ageMonths: Math.floor(ageMonths),
+      ageMonths: Math.max(0, Math.floor(ageMonths)),
       status,
       lastServiceDate: lastService.serviceDate,
     };
@@ -273,7 +297,7 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
                   <Gauge className="h-4 w-4 text-primary" />
-                  <p className="text-sm font-medium">Component Health</p>
+                  <p className="text-sm font-medium">Vehicle Health Index</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <p className="text-2xl font-bold text-primary">
@@ -284,8 +308,8 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
               </div>
               <Progress value={overallHealthPercent} className="h-3" />
               <p className="text-xs text-muted-foreground">
-                Calculated from how long key parts have been in use since their
-                last replacement.
+                Based on how long parts have been in use since their last
+                service.
               </p>
             </div>
           </div>
