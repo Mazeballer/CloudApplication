@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import { Button } from "@/components/ui/button";
-import { Wrench } from "lucide-react";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { logout } from "@/lib/auth";
+import { Button } from '@/components/ui/button';
+import { Wrench } from 'lucide-react';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import { logout } from '@/lib/auth';
 
 export function WorkshopNav() {
   const pathname = usePathname();
@@ -12,14 +12,15 @@ export function WorkshopNav() {
 
   const handleLogout = () => {
     logout();
-    router.push("/");
+    router.push('/');
   };
 
   const navItems = [
-    { href: "/workshop/dashboard", label: "Dashboard" },
-    { href: "/workshop/appointments", label: "Appointments" },
-    { href: "/workshop/customers", label: "Customers" },
-    { href: "/workshop/services", label: "Services" },
+    { href: '/workshop/dashboard', label: 'Dashboard' },
+    { href: '/workshop/appointments', label: 'Appointments' },
+    { href: '/workshop/customers', label: 'Customers' },
+    { href: '/workshop/services', label: 'Services' },
+    { href: '/workshop/operating-hours', label: 'Operating Hours' },
   ];
 
   return (
@@ -40,8 +41,8 @@ export function WorkshopNav() {
                 href={item.href}
                 className={`text-sm font-medium transition-colors hover:text-foreground ${
                   pathname === item.href
-                    ? "text-foreground"
-                    : "text-muted-foreground"
+                    ? 'text-foreground'
+                    : 'text-muted-foreground'
                 }`}
               >
                 {item.label}

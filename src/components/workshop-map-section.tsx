@@ -1,32 +1,32 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { MapPin, Star, Clock, Wrench } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { MapPin, Star, Clock, Wrench } from 'lucide-react';
 
 export function WorkshopMapSection() {
   const workshops = [
     {
-      name: "ProTech Auto Service",
+      name: 'ProTech Auto Service',
       rating: 4.8,
       reviews: 124,
-      specialty: "Air cond specialist",
-      status: "Open now",
-      distance: "1.2 km away",
+      specialty: 'Air cond specialist',
+      status: 'Open now',
+      distance: '1.2 km away',
     },
     {
-      name: "QuickFix Motors",
+      name: 'QuickFix Motors',
       rating: 4.6,
       reviews: 89,
-      specialty: "Tyre and alignment",
-      status: "Slots available",
-      distance: "2.5 km away",
+      specialty: 'Tyre and alignment',
+      status: 'Slots available',
+      distance: '2.5 km away',
     },
     {
-      name: "Elite Car Care",
+      name: 'Elite Car Care',
       rating: 4.9,
       reviews: 156,
-      specialty: "Full service",
-      status: "Open now",
-      distance: "3.8 km away",
+      specialty: 'Full service',
+      status: 'Open now',
+      distance: '3.8 km away',
     },
   ];
 
@@ -51,9 +51,6 @@ export function WorkshopMapSection() {
                 <MapPin className="h-16 w-16 text-primary mx-auto mb-4" />
                 <p className="text-lg font-semibold mb-2">
                   Interactive Map Integration
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Mapbox or Google Maps integration
                 </p>
                 <div className="flex gap-3 mt-6 justify-center">
                   <div className="h-8 w-8 rounded-full bg-primary/20 animate-pulse" />

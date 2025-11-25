@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { ProtectedRoute } from "@/components/protected-route";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { ProtectedRoute } from '@/components/protected-route';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Calendar,
   Car,
@@ -12,12 +12,12 @@ import {
   Users,
   Wrench,
   AlertCircle,
-} from "lucide-react";
-import Link from "next/link";
-import { useEffect, useState } from "react";
-import { useAuth } from "@/lib/auth";
-import { useServiceRecords } from "@/contexts/ServiceRecordContext";
-import { useWorkshops } from "@/contexts/WorkshopContext";
+} from 'lucide-react';
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { useAuth } from '@/lib/auth';
+import { useServiceRecords } from '@/contexts/ServiceRecordContext';
+import { useWorkshops } from '@/contexts/WorkshopContext';
 
 export default function WorkshopDashboard() {
   const { user } = useAuth();
@@ -38,8 +38,8 @@ export default function WorkshopDashboard() {
 
     const workshopId = currentWorkshop?.id; // your workshop account stores this
 
-    console.log("WorkShop ID: ", workshopId);
-    const workshopRecords = recordsByWorkshop[workshopId ?? ""] || [];
+    console.log('WorkShop ID: ', workshopId);
+    const workshopRecords = recordsByWorkshop[workshopId ?? ''] || [];
 
     const todayString = new Date().toISOString().slice(0, 10); // yyyy-mm-dd
 
@@ -48,12 +48,12 @@ export default function WorkshopDashboard() {
     // 1. Today Appointments (Scheduled for today)
     const todays = workshopRecords.filter(
       (r) =>
-        r.status === "Scheduled" && r.serviceDate.slice(0, 10) === todayString
+        r.status === 'Scheduled' && r.serviceDate.slice(0, 10) === todayString
     );
 
     // 2. Active services (Scheduled OR InProgress)
     const activeServices = workshopRecords.filter(
-      (r) => r.status === "Scheduled" || r.status === "InProgress"
+      (r) => r.status === 'Scheduled' || r.status === 'InProgress'
     ).length;
 
     // 3. Total customers (unique vehicles OR unique users)
@@ -61,7 +61,7 @@ export default function WorkshopDashboard() {
 
     // === REVENUE still using demo data ===
     const invoices = JSON.parse(
-      localStorage.getItem("autocare_invoices") || "[]"
+      localStorage.getItem('autocare_invoices') || '[]'
     );
     const now = new Date();
     const thisMonth = now.getMonth();
@@ -73,7 +73,7 @@ export default function WorkshopDashboard() {
         invDate.getMonth() === thisMonth &&
         invDate.getFullYear() === thisYear
       ) {
-        const price = parseFloat(inv.totalPrice.replace("$", ""));
+        const price = parseFloat(inv.totalPrice.replace('$', ''));
         return sum + (isNaN(price) ? 0 : price);
       }
       return sum;
@@ -130,6 +130,12 @@ export default function WorkshopDashboard() {
                 >
                   Services
                 </Link>
+                <Link
+                  href="/workshop/operating-hours"
+                  className="text-sm text-muted-foreground hover:text-foreground"
+                >
+                  Operating Hours
+                </Link>
                 <Button variant="outline" size="sm" asChild>
                   <Link href="/">Logout</Link>
                 </Button>
@@ -161,8 +167,8 @@ export default function WorkshopDashboard() {
                   </p>
                   <p className="text-sm text-muted-foreground mt-2">
                     {stats.todayAppointments === 0
-                      ? "No bookings yet"
-                      : "Active today"}
+                      ? 'No bookings yet'
+                      : 'Active today'}
                   </p>
                 </div>
                 <div className="bg-teal-500/10 p-3 rounded-lg">
@@ -275,9 +281,9 @@ export default function WorkshopDashboard() {
                           <p className="text-sm font-medium">
                             {new Date(
                               appointment.serviceDate
-                            ).toLocaleTimeString("en-US", {
-                              hour: "2-digit",
-                              minute: "2-digit",
+                            ).toLocaleTimeString('en-US', {
+                              hour: '2-digit',
+                              minute: '2-digit',
                             })}
                           </p>
                         </div>
