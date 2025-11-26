@@ -3,11 +3,23 @@
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Wrench, FileText, CheckCircle, MapPin } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Calendar,
+  Wrench,
+  FileText,
+  CheckCircle,
+  MapPin,
+  Clock,
+  CarFront,
+} from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
+// =========================
+// Raw API types
+// =========================
 type RawRecord = {
   id: string;
   vehicleId: string;
@@ -20,6 +32,7 @@ type RawRecord = {
   userPhone: string;
 
   vehicleName: string;
+  vehiclePlate?: string;
   workshopName: string;
   serviceName: string;
 
@@ -35,21 +48,57 @@ type ApiResponse = {
   byService: Record<string, RawRecord[]>;
 };
 
-type ServiceHistoryRecord = {
+// =========================
+// Normalised Types
+// =========================
+type ServiceStatusRecord = {
   id: string;
   vehicle: string;
+  plate?: string;
   workshop: string;
   serviceName: string;
-  status: string;
-  date: string; // ISO string or ""
+  status: string; // normalized
+  rawStatus: string;
+  date: string;
   dateMs: number | null;
   time: string;
   notes?: string;
 };
 
+type StatusFilter =
+  | "All"
+  | "Requested"
+  | "Scheduled"
+  | "Active"
+  | "Completed"
+  | "Cancelled";
+
+// =========================
+// Normalise Status
+// =========================
+function normalizeStatus(status?: string): string {
+  if (!status || typeof status !== "string") return "Requested";
+
+  const lower = status.trim().toLowerCase();
+
+  if (lower.startsWith("req")) return "Requested";
+  if (lower.startsWith("sched")) return "Scheduled";
+  if (lower.startsWith("active")) return "Active";
+  if (lower.startsWith("comp")) return "Completed";
+  if (lower.startsWith("cancel")) return "Cancelled";
+
+  // default fallback
+  const s = status.trim();
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : "Requested";
+}
+
+// ======================================================
+// MAIN MERGED COMPONENT
+// ======================================================
 export function ServiceHistory() {
-  const [records, setRecords] = useState<ServiceHistoryRecord[]>([]);
+  const [records, setRecords] = useState<ServiceStatusRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
 
   useEffect(() => {
     const loadHistory = async () => {
@@ -71,33 +120,38 @@ export function ServiceHistory() {
         }
 
         const data: ApiResponse = await res.json();
-        console.log("ServiceRecord/all (history) response:", data);
+        const userRecords: RawRecord[] = data.byUser?.[String(user.id)] ?? [];
 
-        const userId = String(user.id);
-        const userRecords: RawRecord[] = data.byUser?.[userId] ?? [];
+        // Convert → ServiceStatusRecord (same structure as service-status)
+        const mapped: ServiceStatusRecord[] = userRecords.map((r) => {
+          const status = normalizeStatus(r.status);
 
-        const completedRaw = userRecords.filter(
-          (r) => r.status === "Completed"
-        );
+          const rawDate = r.serviceDate;
+          let time = "—";
+          let dateMs: number | null = null;
 
-        const mapped: ServiceHistoryRecord[] = completedRaw.map((r) => {
-          const d = r.serviceDate ? new Date(r.serviceDate) : null;
-          const hasValidDate = d && !Number.isNaN(d.getTime());
+          if (rawDate) {
+            const d = new Date(rawDate);
+            if (!Number.isNaN(d.getTime())) {
+              dateMs = d.getTime();
+              time = d.toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              });
+            }
+          }
 
           return {
             id: r.id,
             vehicle: r.vehicleName ?? "Unknown vehicle",
+            plate: r.vehiclePlate,
             workshop: r.workshopName ?? "Unknown workshop",
             serviceName: r.serviceName ?? "Unknown service",
-            status: r.status ?? "Completed",
-            date: hasValidDate ? d!.toISOString() : "",
-            dateMs: hasValidDate ? d!.getTime() : null,
-            time: hasValidDate
-              ? d!.toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
-              : "—",
+            status,
+            rawStatus: r.status,
+            date: rawDate,
+            dateMs,
+            time,
             notes: r.remarks,
           };
         });
@@ -114,77 +168,129 @@ export function ServiceHistory() {
     loadHistory();
   }, []);
 
-  // All metrics are now based ONLY on completed records
-  const totalCompleted = records.length;
+  // ======================================================
+  // METRICS SECTION
+  // ======================================================
+
+  const totalServices = records.length;
+
+  const completed = records.filter((r) => r.status === "Completed");
+  const totalCompleted = completed.length;
 
   const lastCompleted =
-    records.length > 0
-      ? records.reduce((latest, cur) =>
-          cur.dateMs && latest.dateMs
-            ? cur.dateMs > latest.dateMs
-              ? cur
-              : latest
-            : latest
+    completed.length > 0
+      ? completed.reduce((a, b) =>
+          a.dateMs && b.dateMs ? (b.dateMs > a.dateMs ? b : a) : a
         )
       : null;
 
-  const completedWorkshops = new Set(records.map((r) => r.workshop)).size;
+  const scheduled = records.filter(
+    (r) => r.status === "Scheduled" && r.dateMs !== null
+  );
 
+  const nextAppointment =
+    scheduled.length > 0
+      ? scheduled.reduce((best, cur) =>
+          cur.dateMs! < best.dateMs! ? cur : best
+        )
+      : null;
+
+  const uniqueWorkshops = new Set(records.map((r) => r.workshop)).size;
+
+  // ======================================================
+  // FILTERED VIEW
+  // ======================================================
+  const filteredRecords =
+    statusFilter === "All"
+      ? records
+      : records.filter((r) => r.status === statusFilter);
+
+  const statusOptions: StatusFilter[] = [
+    "All",
+    "Requested",
+    "Scheduled",
+    "Active",
+    "Completed",
+    "Cancelled",
+  ];
+
+  // ======================================================
+  // RENDER
+  // ======================================================
   return (
     <div className="space-y-6">
-      {/* Summary Stats – only completed services */}
-      <div className="grid sm:grid-cols-3 gap-4">
+      {/* TOP METRICS */}
+      <div className="grid sm:grid-cols-5 gap-4">
         <Card className="p-6">
-          <div className="flex items-center gap-3 mb-2">
-            <CheckCircle className="h-8 w-8 text-emerald-500" />
-          </div>
-          <p className="text-3xl font-bold">{totalCompleted}</p>
-          <p className="text-sm text-muted-foreground">
-            Total Completed Services
-          </p>
+          <Wrench className="h-8 w-8 text-primary mb-2" />
+          <p className="text-3xl font-bold">{totalServices}</p>
+          <p className="text-sm text-muted-foreground">Total Services</p>
         </Card>
 
         <Card className="p-6">
-          <div className="flex items-center gap-3 mb-2">
-            <Calendar className="h-8 w-8 text-blue-500" />
-          </div>
+          <CheckCircle className="h-8 w-8 text-emerald-500 mb-2" />
+          <p className="text-3xl font-bold">{totalCompleted}</p>
+          <p className="text-sm text-muted-foreground">Completed</p>
+        </Card>
+
+        <Card className="p-6">
+          <Calendar className="h-8 w-8 text-blue-500 mb-2" />
           <p className="text-3xl font-bold">
-            {lastCompleted && lastCompleted.dateMs
+            {lastCompleted?.dateMs
               ? new Date(lastCompleted.dateMs).toLocaleDateString("en-GB")
               : "—"}
           </p>
-          <p className="text-sm text-muted-foreground">
-            Last Completed Service
-          </p>
+          <p className="text-sm text-muted-foreground">Last Completed</p>
         </Card>
 
         <Card className="p-6">
-          <div className="flex items-center gap-3 mb-2">
-            <MapPin className="h-8 w-8 text-primary" />
-          </div>
-          <p className="text-3xl font-bold">{completedWorkshops}</p>
-          <p className="text-sm text-muted-foreground">
-            Workshops with Completed Services
+          <Calendar className="h-8 w-8 text-indigo-500 mb-2" />
+          <p className="text-3xl font-bold">
+            {nextAppointment?.dateMs
+              ? new Date(nextAppointment.dateMs).toLocaleDateString("en-GB")
+              : "—"}
           </p>
+          <p className="text-sm text-muted-foreground">Next Appointment</p>
+        </Card>
+
+        <Card className="p-6">
+          <MapPin className="h-8 w-8 text-pink-500 mb-2" />
+          <p className="text-3xl font-bold">{uniqueWorkshops}</p>
+          <p className="text-sm text-muted-foreground">Workshops Involved</p>
         </Card>
       </div>
 
-      {/* Service Records – completed only */}
+      {/* FILTER BUTTONS */}
+      <div className="flex flex-wrap gap-2">
+        {statusOptions.map((status) => (
+          <Button
+            key={status}
+            size="sm"
+            variant={statusFilter === status ? "default" : "outline"}
+            onClick={() => setStatusFilter(status)}
+            className="rounded-full px-4"
+          >
+            {status}
+          </Button>
+        ))}
+      </div>
+
+      {/* RECORD LIST */}
       <Card className="p-6">
         {loading ? (
           <div className="text-center py-12 text-muted-foreground">
             <Wrench className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>Loading your completed service history...</p>
+            <p>Loading your service history...</p>
           </div>
-        ) : records.length === 0 ? (
+        ) : filteredRecords.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             <Wrench className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>No completed services yet.</p>
+            <p>No services found.</p>
           </div>
         ) : (
           <div className="space-y-4">
-            {records.map((record, idx) => (
-              <ServiceRecordCard
+            {filteredRecords.map((record, idx) => (
+              <ServiceStatusCard
                 key={`${record.id || "record"}-${idx}`}
                 record={record}
               />
@@ -196,46 +302,67 @@ export function ServiceHistory() {
   );
 }
 
-function ServiceRecordCard({ record }: { record: ServiceHistoryRecord }) {
-  const hasValidDate = !!record.date;
+// ======================================================
+// CARD COMPONENT (from service-status)
+// ======================================================
+function ServiceStatusCard({ record }: { record: ServiceStatusRecord }) {
+  const hasValidDate = record.dateMs !== null;
 
   return (
     <Card className="p-6 hover:shadow-md transition-shadow">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
-        <div className="flex-1">
-          <div className="flex items-center gap-3 mb-2">
-            <h3 className="text-lg font-semibold">{record.serviceName}</h3>
-            <Badge variant="default">Completed</Badge>
+      {/* Top row */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-4">
+        <div className="flex items-start gap-3">
+          <CarFront className="h-6 w-6 text-primary mt-1" />
+          <div>
+            <h3 className="text-lg font-semibold">{record.vehicle}</h3>
+            {record.plate && (
+              <p className="text-sm font-medium text-muted-foreground">
+                Plate: {record.plate}
+              </p>
+            )}
+            <p className="text-sm text-muted-foreground">{record.workshop}</p>
           </div>
-          <p className="text-sm text-muted-foreground mb-1">{record.vehicle}</p>
-          <p className="text-sm text-muted-foreground">{record.workshop}</p>
         </div>
+        <Badge>{record.status}</Badge>
       </div>
 
-      <div className="grid sm:grid-cols-2 gap-3 mb-4 p-4 bg-muted/50 rounded-lg">
+      {/* Middle row: service name */}
+      <div className="mb-4">
+        <p className="text-sm text-muted-foreground">
+          Service:{" "}
+          <span className="font-medium text-foreground">
+            {record.serviceName}
+          </span>
+        </p>
+      </div>
+
+      {/* Date & time row */}
+      <div className="grid sm:grid-cols-2 gap-3 bg-muted/50 p-4 rounded-lg mb-4">
         <div className="flex items-center gap-2 text-sm">
           <Calendar className="h-4 w-4 text-muted-foreground" />
           <span className="text-muted-foreground">Date:</span>
           <span className="font-medium">
             {hasValidDate
-              ? new Date(record.date).toLocaleDateString("en-GB")
+              ? new Date(record.dateMs!).toLocaleDateString("en-GB")
               : "—"}
           </span>
         </div>
+
         <div className="flex items-center gap-2 text-sm">
-          <Wrench className="h-4 w-4 text-muted-foreground" />
+          <Clock className="h-4 w-4 text-muted-foreground" />
           <span className="text-muted-foreground">Time:</span>
-          <span className="font-medium">{record.time}</span>
+          <span className="font-medium">
+            {hasValidDate ? record.time : "—"}
+          </span>
         </div>
       </div>
 
+      {/* Notes */}
       {record.notes && (
-        <div className="flex items-start gap-2 mb-4">
-          <FileText className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            {record.notes}
-          </p>
-        </div>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          {record.notes}
+        </p>
       )}
     </Card>
   );

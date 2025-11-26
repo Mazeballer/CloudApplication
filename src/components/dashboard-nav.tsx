@@ -23,7 +23,6 @@ export function DashboardNav() {
     { label: "My Vehicles", href: "/dashboard/vehicles" },
     { label: "Service History", href: "/dashboard/history" },
     { label: "Book Service", href: "/dashboard/book" },
-    { label: "Service Status", href: "/dashboard/service-status" },
   ];
 
   return (
