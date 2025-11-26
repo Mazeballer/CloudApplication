@@ -1,24 +1,24 @@
 // src/app/forget-password/page.tsx
-"use client";
+'use client';
 
-import { useState } from "react";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { useState } from 'react';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { ArrowLeft, CheckCircle2, Car } from "lucide-react";
+} from '@/components/ui/card';
+import { ArrowLeft, CheckCircle2, Car } from 'lucide-react';
 
 // USE YOUR EXISTING ENV VARIABLE
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState<string>("");
+  const [email, setEmail] = useState<string>('');
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,36 +31,36 @@ export default function ForgotPasswordPage() {
     setError(null);
 
     if (!API_BASE_URL) {
-      console.error("NEXT_PUBLIC_API_URL is not set");
-      setError("Configuration error. Please contact support.");
+      console.error('NEXT_PUBLIC_API_URL is not set');
+      setError('Configuration error. Please contact support.');
       setIsLoading(false);
       return;
     }
 
     try {
       const res = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       });
 
       // Backend should return 200 OK even if email does not exist
       if (!res.ok) {
-        console.error("Forgot password failed", await res.text());
-        throw new Error("Request failed");
+        console.error('Forgot password failed', await res.text());
+        throw new Error('Request failed');
       }
 
       setIsSubmitted(true);
     } catch (err) {
       console.error(err);
-      setError("Something went wrong. Please try again in a moment.");
+      setError('Something went wrong. Please try again in a moment.');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleReset = () => {
-    setEmail("");
+    setEmail('');
     setIsSubmitted(false);
     setError(null);
   };
@@ -128,8 +128,8 @@ export default function ForgotPasswordPage() {
             <CardTitle className="text-2xl">Forgot your password?</CardTitle>
             <CardDescription>
               {isSubmitted
-                ? "If an account exists with that email, you will receive a reset link."
-                : "Enter your email address and we will send you a link to reset your password."}
+                ? 'If an account exists with that email, you will receive a reset link.'
+                : 'Enter your email address and we will send you a link to reset your password.'}
             </CardDescription>
           </CardHeader>
 
@@ -165,7 +165,7 @@ export default function ForgotPasswordPage() {
                   className="w-full bg-primary hover:bg-primary/90 text-white"
                   disabled={isLoading || !email}
                 >
-                  {isLoading ? "Sending..." : "Send reset link"}
+                  {isLoading ? 'Sending...' : 'Send reset link'}
                 </Button>
 
                 <Button
@@ -191,7 +191,6 @@ export default function ForgotPasswordPage() {
                     Check your email
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    If an account exists for{" "}
                     <span className="font-medium">{email}</span>, we have sent a
                     password reset link.
                   </p>

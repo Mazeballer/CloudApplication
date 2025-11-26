@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, {
   createContext,
@@ -6,9 +6,9 @@ import React, {
   useEffect,
   useState,
   ReactNode,
-} from "react";
-import { getWorkshops, getCurrentWorkshops } from "@/lib/workshop";
-import { useAuth } from "@/lib/auth"; // Use your custom hook
+} from 'react';
+import { getWorkshops, getCurrentWorkshops } from '@/lib/workshop';
+import { useAuth } from '@/lib/auth';
 
 interface WorkshopAddress {
   street: string;
@@ -26,15 +26,22 @@ interface DailyHours {
 }
 
 interface WorkshopHours {
-  hoursByDay: Record<string, DailyHours>;
+  // make this an array so it works with hours.hoursByDay.map(...)
+  hoursByDay: DailyHours[];
 }
 
-interface Workshop {
+export interface Workshop {
   id: string;
   name: string;
   address: WorkshopAddress;
   hours: WorkshopHours;
   rating: number;
+
+  // new fields for maps and filtering
+  latitude?: number | null;
+  longitude?: number | null;
+  status?: string | null; // could be "Approved" or "Pending"
+  approvalStatus?: string | null; // in case backend uses this
 }
 
 interface WorkshopContextType {
@@ -59,33 +66,63 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
 
   const refreshWorkshops = async () => {
     if (!user?.email) {
-      console.warn("User email missing. Skipping workshop refresh.");
+      console.warn('User email missing. Skipping workshop refresh.');
       return;
     }
 
     try {
       setLoading(true);
+
+      // get all workshops for driver side
       const data = await getWorkshops();
-      const formatted = data.map((w: any) => ({
+
+      const formatted: Workshop[] = data.map((w: any) => ({
         id: w.id,
-        name: w.name,
+        name: w.name ?? w.workshopName ?? w.WorkshopName,
         address: w.address,
-        hours: w.hours,
-        rating: w.rating,
+        // API usually returns operatingHours from the controller
+        hours: w.operatingHours ?? w.hours ?? { hoursByDay: [] },
+        rating: w.rating ?? 0,
+        latitude: w.latitude ?? w.geoLatitude ?? w.GeoLatitude ?? null,
+        longitude: w.longitude ?? w.geoLongitude ?? w.GeoLongitude ?? null,
+        status: w.status ?? w.approvalStatus ?? w.ApprovalStatus ?? null,
+        approvalStatus: w.approvalStatus ?? w.ApprovalStatus ?? null,
       }));
 
-      if (userType === "Workshop") {
+      // if logged in as workshop, also load their own profile
+      if (userType === 'Workshop') {
         const currentData = await getCurrentWorkshops(user.email);
         const workshop = currentData?.workshops?.[0];
 
         if (workshop) {
-          const formattedCurrent = {
-            id: workshop.id,
-            name: workshop.name,
+          const formattedCurrent: Workshop = {
+            id: workshop.id ?? workshop.Id,
+            name:
+              workshop.name ?? workshop.workshopName ?? workshop.WorkshopName,
             address: workshop.address,
-            hours: workshop.hours,
-            rating: workshop.rating,
+            hours: workshop.operatingHours ??
+              workshop.OperatingHours ??
+              workshop.hours ?? { hoursByDay: [] },
+            rating: workshop.rating ?? workshop.Rating ?? 0,
+            latitude:
+              workshop.latitude ??
+              workshop.geoLatitude ??
+              workshop.GeoLatitude ??
+              null,
+            longitude:
+              workshop.longitude ??
+              workshop.geoLongitude ??
+              workshop.GeoLongitude ??
+              null,
+            status:
+              workshop.status ??
+              workshop.approvalStatus ??
+              workshop.ApprovalStatus ??
+              null,
+            approvalStatus:
+              workshop.approvalStatus ?? workshop.ApprovalStatus ?? null,
           };
+
           setCurrentWorkshop(formattedCurrent);
         }
       } else {
@@ -96,7 +133,7 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
       setTotalWorkshops(formatted.length);
       setError(null);
     } catch (err: any) {
-      setError(err.message || "Failed to load workshops");
+      setError(err.message || 'Failed to load workshops');
     } finally {
       setLoading(false);
     }
@@ -128,7 +165,8 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
 
 export function useWorkshops() {
   const ctx = useContext(WorkshopContext);
-  if (!ctx)
-    throw new Error("useWorkshops must be used inside <WorkshopProvider>");
+  if (!ctx) {
+    throw new Error('useWorkshops must be used inside <WorkshopProvider>');
+  }
   return ctx;
 }

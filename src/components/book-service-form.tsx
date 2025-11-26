@@ -1,73 +1,76 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
+import { useEffect, useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
+
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from '@/components/ui/select';
 
 import {
   Calendar,
   CheckCircle,
-  MapPin,
   Star,
-  DollarSign,
   Timer,
   Wrench,
   Zap,
   Hammer,
-} from "lucide-react";
+} from 'lucide-react';
 
-import { getCurrentUser } from "@/lib/auth";
-import { createServiceBooking } from "@/lib/serviceRecord";
-import { useWorkshops } from "@/contexts/WorkshopContext";
-import { useVehicles } from "@/contexts/VehiclesContext";
-import { useServices } from "@/contexts/ServiceContext";
+import type { LatLngExpression } from 'leaflet';
+
+import { getCurrentUser } from '@/lib/auth';
+import { createServiceBooking } from '@/lib/serviceRecord';
+import { useWorkshops } from '@/contexts/WorkshopContext';
+import { useVehicles } from '@/contexts/VehiclesContext';
+import { useServices } from '@/contexts/ServiceContext';
+
+// Load Leaflet map only on client
+const WorkshopMap = dynamic(
+  () => import('@/components/workshop-map').then((m) => m.WorkshopMap),
+  { ssr: false }
+);
 
 const formatDuration = (totalMinutes: number) => {
-  if (totalMinutes === 0) return "0 mins";
+  if (totalMinutes === 0) return '0 mins';
 
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
 
-  let parts = [];
-  if (hours > 0) {
-    parts.push(`${hours} hr`);
-  }
-  if (minutes > 0) {
-    parts.push(`${minutes} mins`);
-  }
+  const parts: string[] = [];
+  if (hours > 0) parts.push(`${hours} hr`);
+  if (minutes > 0) parts.push(`${minutes} mins`);
 
-  return parts.join(" ");
+  return parts.join(' ');
 };
 
 function convertTo24h(time12h: string) {
-  const [time, modifier] = time12h.split(" ");
-  let [hours, minutes] = time.split(":");
+  const [time, modifier] = time12h.split(' ');
+  let [hours, minutes] = time.split(':');
 
-  if (hours === "12") hours = "00";
-  if (modifier === "PM") hours = (parseInt(hours) + 12).toString();
+  if (hours === '12') hours = '00';
+  if (modifier === 'PM') hours = (parseInt(hours) + 12).toString();
 
-  return `${hours.padStart(2, "0")}:${minutes}`;
+  return `${hours.padStart(2, '0')}:${minutes}`;
 }
 
-// Helper function to get the icon component based on category
 const getCategoryIcon = (category: string, className: string) => {
   switch (category) {
-    case "Maintenance":
+    case 'Maintenance':
       return <Wrench className={className} />;
-    case "Diagnostics":
+    case 'Diagnostics':
       return <Zap className={className} />;
-    case "Repair":
+    case 'Repair':
       return <Hammer className={className} />;
     default:
       return <Wrench className={className} />;
@@ -75,27 +78,48 @@ const getCategoryIcon = (category: string, className: string) => {
 };
 
 function formatTime12h(time: string) {
-  if (!time) return "";
-  const [h, m] = time.split(":");
+  if (!time) return '';
+  const [h, m] = time.split(':');
   const hour = parseInt(h);
-  const suffix = hour >= 12 ? "PM" : "AM";
+  const suffix = hour >= 12 ? 'PM' : 'AM';
   const hour12 = hour % 12 || 12;
   return `${hour12}:${m} ${suffix}`;
 }
 
 function generateTimeSlots(start: string, end: string) {
-  const slots = [];
+  const slots: string[] = [];
   let current = new Date(`2000-01-01T${start}`);
   const endDate = new Date(`2000-01-01T${end}`);
 
   while (current <= endDate) {
-    const hh = current.getHours().toString().padStart(2, "0");
-    const mm = current.getMinutes().toString().padStart(2, "0");
+    const hh = current.getHours().toString().padStart(2, '0');
+    const mm = current.getMinutes().toString().padStart(2, '0');
     slots.push(formatTime12h(`${hh}:${mm}`));
-    current.setMinutes(current.getMinutes() + 60); // 1-hour interval
+    current.setMinutes(current.getMinutes() + 60);
   }
 
   return slots;
+}
+
+// basic Haversine in km
+function distanceKm(a: LatLngExpression, b: LatLngExpression) {
+  const [lat1, lon1] = a as [number, number];
+  const [lat2, lon2] = b as [number, number];
+
+  const R = 6371;
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const la1 = toRad(lat1);
+  const la2 = toRad(lat2);
+
+  const h =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(la1) * Math.cos(la2) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+  return R * c;
 }
 
 export function BookServiceForm() {
@@ -103,35 +127,69 @@ export function BookServiceForm() {
   const [selectedWorkshop, setSelectedWorkshop] = useState<any>(null);
   const [selectedService, setSelectedService] = useState<any>(null);
   const [selectedVehicle, setSelectedVehicle] = useState<any>(null);
-  const [selectedDate, setSelectedDate] = useState("");
-  const [selectedTime, setSelectedTime] = useState("");
-  const [phone, setPhone] = useState("");
-  const [notes, setNotes] = useState("");
+  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedTime, setSelectedTime] = useState('');
+  const [phone, setPhone] = useState('');
+  const [notes, setNotes] = useState('');
   const [timeSlots, setTimeSlots] = useState<string[]>([]);
-  const [closedMessage, setClosedMessage] = useState("");
+  const [closedMessage, setClosedMessage] = useState('');
 
-  // 🚀 Load workshops & vehicles from context
+  // map related
+  const [userLocation, setUserLocation] = useState<LatLngExpression | null>(
+    null
+  );
+  const [locationError, setLocationError] = useState<string | null>(null);
+
   const { workshops, loading: loadingWorkshops } = useWorkshops();
   const { vehicles, loading: loadingVehicles } = useVehicles();
   const { servicesByWorkshop, loading: loadingServices } = useServices();
 
+  // only approved workshops are visible to drivers
+  const visibleWorkshops = useMemo(
+    () =>
+      (workshops || []).filter((w: any) => {
+        const status =
+          w.status ?? w.approvalStatus ?? w.approvalStatus?.toString?.() ?? '';
+        return status.toString().toLowerCase() === 'approved';
+      }),
+    [workshops]
+  );
+
+  // nearest 5 workshops based on user location (if we have coords)
+  const nearestWorkshops = useMemo(() => {
+    if (userLocation) {
+      const withCoords = visibleWorkshops.filter(
+        (w: any) => w.latitude && w.longitude
+      );
+
+      if (withCoords.length > 0) {
+        return withCoords
+          .map((w: any) => ({
+            workshop: w,
+            distance: distanceKm(userLocation, [
+              w.latitude as number,
+              w.longitude as number,
+            ]),
+          }))
+          .sort((a, b) => a.distance - b.distance)
+          .slice(0, 5)
+          .map((x) => x.workshop);
+      }
+    }
+
+    // fallback: just first 5 approved
+    return visibleWorkshops.slice(0, 5);
+  }, [visibleWorkshops, userLocation]);
+
   const services = selectedWorkshop
     ? (servicesByWorkshop[selectedWorkshop.id] || []).filter(
-        (s: any) => s.status === "Active"
+        (s: any) => s.status === 'Active'
       )
     : [];
 
-  console.log(
-    "Fetched active services for workshop:",
-    selectedWorkshop?.id,
-    services
-  );
-
   const handleWorkshopSelect = (workshop: any) => {
-    console.log("SELECTED WORKSHOP:", workshop);
-
     setSelectedWorkshop(workshop);
-    setSelectedService(null); // reset service when selecting workshop
+    setSelectedService(null);
   };
 
   const handleServiceSelect = (service: any) => {
@@ -148,7 +206,7 @@ export function BookServiceForm() {
       !selectedDate ||
       !selectedTime
     ) {
-      console.error("Please fill in all required fields");
+      console.error('Please fill in all required fields');
       return;
     }
 
@@ -162,31 +220,30 @@ export function BookServiceForm() {
       serviceDate: new Date(
         `${selectedDate}T${convertTo24h(selectedTime)}`
       ).toISOString(),
-      serviceMileage: parseInt(selectedVehicle.mileage.replace(/[^0-9]/g, "")),
+      serviceMileage: parseInt(selectedVehicle.mileage.replace(/[^0-9]/g, '')),
       remarks: notes,
-
       serviceName: selectedService.name,
       servicePrice: selectedService.price,
-
-      status: "Request",
+      status: 'Request',
     };
 
     await createServiceBooking(payload);
 
     setSubmitted(true);
     setTimeout(() => {
-      window.location.href = "/dashboard";
+      window.location.href = '/dashboard';
     }, 1500);
   };
 
+  // operating hours and time slots
   useEffect(() => {
     if (!selectedDate || !selectedWorkshop) return;
 
     const d = new Date(selectedDate);
-    const dayName = d.toLocaleDateString("en-GB", { weekday: "long" });
+    const dayName = d.toLocaleDateString('en-GB', { weekday: 'long' });
 
     const dayHours = selectedWorkshop.hours?.hoursByDay?.find(
-      (d: any) => d.day === dayName
+      (x: any) => x.day === dayName
     );
 
     if (!dayHours || !dayHours.isOpen) {
@@ -195,12 +252,51 @@ export function BookServiceForm() {
       return;
     }
 
-    setClosedMessage("");
+    setClosedMessage('');
     const slots = generateTimeSlots(dayHours.startTime, dayHours.endTime);
     setTimeSlots(slots);
   }, [selectedDate, selectedWorkshop]);
 
-  // ✔ Success screen
+  // geolocate user
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setLocationError('Geolocation is not supported by this browser.');
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserLocation([pos.coords.latitude, pos.coords.longitude]);
+      },
+      () => {
+        setLocationError('Unable to retrieve your location.');
+      }
+    );
+  }, []);
+
+  const defaultCenter: LatLngExpression = [3.139, 101.6869];
+
+  const mapCenter: LatLngExpression = (() => {
+    if (
+      selectedWorkshop &&
+      selectedWorkshop.latitude &&
+      selectedWorkshop.longitude
+    ) {
+      return [selectedWorkshop.latitude, selectedWorkshop.longitude];
+    }
+
+    if (userLocation) return userLocation;
+
+    const firstWithCoords = nearestWorkshops.find(
+      (w: any) => w.latitude && w.longitude
+    );
+    if (firstWithCoords) {
+      return [firstWithCoords.latitude, firstWithCoords.longitude];
+    }
+
+    return defaultCenter;
+  })();
+
   if (submitted) {
     return (
       <Card className="p-12 text-center max-w-2xl mx-auto">
@@ -213,7 +309,7 @@ export function BookServiceForm() {
           Service Booked Successfully!
         </h2>
         <p className="text-muted-foreground mb-6">
-          Your appointment at {selectedWorkshop?.name} has been confirmed for{" "}
+          Your appointment at {selectedWorkshop?.name} has been confirmed for{' '}
           {selectedDate} at {selectedTime}.
         </p>
         <p className="text-sm text-muted-foreground">
@@ -227,18 +323,21 @@ export function BookServiceForm() {
     <div className="grid lg:grid-cols-2 gap-6">
       {/* LEFT COLUMN */}
       <div className="space-y-6">
-        {/* Map */}
+        {/* Map with nearest 5 workshops */}
         <Card className="overflow-hidden h-80">
-          <iframe
-            src="https://www.google.com/maps/embed?pb=!1m18..."
-            width="100%"
-            height="100%"
-            style={{ border: 0 }}
-            loading="lazy"
+          <WorkshopMap
+            center={mapCenter}
+            workshops={nearestWorkshops}
+            userLocation={userLocation}
           />
+          {locationError && (
+            <p className="px-4 py-2 text-xs text-muted-foreground">
+              {locationError}
+            </p>
+          )}
         </Card>
 
-        {/* Workshop List */}
+        {/* Workshop List: nearest 5 only */}
         <div className="space-y-4">
           <h3 className="text-lg font-semibold">Select Workshop</h3>
 
@@ -247,17 +346,16 @@ export function BookServiceForm() {
           )}
 
           {!loadingWorkshops &&
-            workshops.map((workshop: any) => (
+            nearestWorkshops.map((workshop: any) => (
               <Card
                 key={workshop.id}
                 className={`group relative p-5 cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 ${
                   selectedWorkshop?.id === workshop.id
-                    ? "ring-2 ring-primary shadow-md bg-primary/5"
-                    : "hover:border-primary/50"
+                    ? 'ring-2 ring-primary shadow-md bg-primary/5'
+                    : 'hover:border-primary/50'
                 }`}
                 onClick={() => handleWorkshopSelect(workshop)}
               >
-                {/* Selected Indicator */}
                 {selectedWorkshop?.id === workshop.id && (
                   <div className="absolute top-3 right-3">
                     <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
@@ -267,7 +365,6 @@ export function BookServiceForm() {
                 )}
 
                 <div className="space-y-3">
-                  {/* Workshop Name & Location */}
                   <div className="pr-10">
                     <h4 className="font-bold text-lg mb-1.5 group-hover:text-primary transition-colors">
                       {workshop.name}
@@ -281,14 +378,12 @@ export function BookServiceForm() {
                         workshop.address?.country,
                       ]
                         .filter(Boolean)
-                        .join(", ")}
+                        .join(', ')}
                     </span>
                   </div>
 
-                  {/* Divider */}
                   <div className="border-t border-border/50" />
 
-                  {/* Rating & Hours */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
                       <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
@@ -299,14 +394,8 @@ export function BookServiceForm() {
                         rating
                       </span>
                     </div>
-
-                    {/* <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <Timer className="h-3.5 w-3.5" />
-                      <span>{workshop.hours}</span>
-                    </div> */}
                   </div>
 
-                  {/* Selected Badge */}
                   {selectedWorkshop?.id === workshop.id && (
                     <Badge className="w-full justify-center" variant="default">
                       ✓ Workshop Selected
@@ -320,7 +409,6 @@ export function BookServiceForm() {
 
       {/* RIGHT COLUMN */}
       <div className="space-y-6">
-        {/* Service Selection */}
         {selectedWorkshop && (
           <Card className="p-6">
             <h3 className="text-xl font-bold mb-4">
@@ -336,29 +424,24 @@ export function BookServiceForm() {
                 No services have been added to this workshop yet.
               </p>
             ) : (
-              <div
-                // 1. Replace space-y-4 with grid classes
-                className="grid gap-4 sm:grid-cols-2 lg:grid-cols-2"
-              >
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-2">
                 {services.map((service: any) => (
                   <div
                     key={service.id}
                     onClick={() => handleServiceSelect(service)}
-                    // Optional: Add col-span-1 for clarity in the grid
                     className={`col-span-1 p-4 border rounded-lg cursor-pointer transition-all duration-200 ${
                       selectedService?.id === service.id
-                        ? "ring-2 ring-primary border-primary bg-primary/5 shadow-md"
-                        : "hover:border-primary/50"
+                        ? 'ring-2 ring-primary border-primary bg-primary/5 shadow-md'
+                        : 'hover:border-primary/50'
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      {/* Name and Category Badge */}
                       <div className="flex items-center gap-3">
                         {getCategoryIcon(
                           service.category,
                           selectedService?.id === service.id
-                            ? "h-6 w-6 text-primary"
-                            : "h-6 w-6 text-muted-foreground"
+                            ? 'h-6 w-6 text-primary'
+                            : 'h-6 w-6 text-muted-foreground'
                         )}
                         <div>
                           <p className="font-semibold text-base">
@@ -366,13 +449,13 @@ export function BookServiceForm() {
                           </p>
                           <Badge
                             className={
-                              service.category === "Maintenance"
-                                ? "bg-green-500 text-white hover:bg-green-600"
-                                : service.category === "Diagnostics"
-                                ? "bg-blue-500 text-white hover:bg-blue-600"
-                                : service.category === "Repair"
-                                ? "bg-red-500 text-white hover:bg-red-600"
-                                : "bg-gray-500 text-white hover:bg-gray-600"
+                              service.category === 'Maintenance'
+                                ? 'bg-green-500 text-white hover:bg-green-600'
+                                : service.category === 'Diagnostics'
+                                ? 'bg-blue-500 text-white hover:bg-blue-600'
+                                : service.category === 'Repair'
+                                ? 'bg-red-500 text-white hover:bg-red-600'
+                                : 'bg-gray-500 text-white hover:bg-gray-600'
                             }
                           >
                             {service.category}
@@ -380,7 +463,6 @@ export function BookServiceForm() {
                         </div>
                       </div>
 
-                      {/* Details and Price */}
                       <div className="text-right space-y-1">
                         <p className="font-bold text-lg text-primary">
                           RM {service.price.toFixed(2)}
@@ -401,12 +483,10 @@ export function BookServiceForm() {
           </Card>
         )}
 
-        {/* Booking Form */}
         {selectedService && selectedWorkshop && (
           <Card className="p-6">
             <h3 className="text-lg font-semibold mb-4">Booking Details</h3>
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Vehicles */}
               <div className="space-y-2">
                 <Label>Select Vehicle *</Label>
 
@@ -415,7 +495,7 @@ export function BookServiceForm() {
                 ) : (
                   <Select
                     required
-                    value={selectedVehicle?.id || ""}
+                    value={selectedVehicle?.id || ''}
                     onValueChange={(vehicleId) => {
                       const vehicle = vehicles.find((v) => v.id === vehicleId);
                       setSelectedVehicle(vehicle);
@@ -435,7 +515,6 @@ export function BookServiceForm() {
                 )}
               </div>
 
-              {/* Date */}
               <div className="space-y-2">
                 <Label>Preferred Date *</Label>
                 <div className="relative">
@@ -446,52 +525,40 @@ export function BookServiceForm() {
                     required
                     value={selectedDate}
                     onChange={(e) => setSelectedDate(e.target.value)}
-                    min={new Date().toISOString().split("T")[0]}
+                    min={new Date().toISOString().split('T')[0]}
                   />
                 </div>
               </div>
 
-              {/* Time */}
               <div className="space-y-2">
-                <div className="space-y-2">
-                  <Label>Preferred Time *</Label>
+                <Label>Preferred Time *</Label>
 
-                  {closedMessage ? (
-                    <p className="text-red-600 text-sm">{closedMessage}</p>
-                  ) : (
-                    <div
-                      className="
-                        grid 
-                        grid-cols-[repeat(auto-fill,minmax(100px,1fr))] 
-                        gap-3
-                      "
-                    >
-                      {timeSlots.map((time) => (
-                        <Button
-                          key={time}
-                          type="button"
-                          variant={
-                            selectedTime === time ? "default" : "outline"
-                          }
-                          size="sm"
-                          onClick={() => setSelectedTime(time)}
-                          className="w-full"
-                        >
-                          {time}
-                        </Button>
-                      ))}
+                {closedMessage ? (
+                  <p className="text-red-600 text-sm">{closedMessage}</p>
+                ) : (
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-3">
+                    {timeSlots.map((time) => (
+                      <Button
+                        key={time}
+                        type="button"
+                        variant={selectedTime === time ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setSelectedTime(time)}
+                        className="w-full"
+                      >
+                        {time}
+                      </Button>
+                    ))}
 
-                      {timeSlots.length === 0 && (
-                        <p className="text-muted-foreground text-sm col-span-full">
-                          No available time slots.
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
+                    {timeSlots.length === 0 && (
+                      <p className="text-muted-foreground text-sm col-span-full">
+                        No available time slots.
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
-              {/* Phone */}
               <div className="space-y-2">
                 <Label>Phone Number *</Label>
                 <Input
@@ -503,7 +570,6 @@ export function BookServiceForm() {
                 />
               </div>
 
-              {/* Notes */}
               <div className="space-y-2">
                 <Label>Additional Notes (Optional)</Label>
                 <Textarea
