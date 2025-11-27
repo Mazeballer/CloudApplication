@@ -1,19 +1,18 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { useEffect, useState } from 'react';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Calendar,
   Wrench,
-  FileText,
   CheckCircle,
   MapPin,
   Clock,
   CarFront,
-} from "lucide-react";
-import { getCurrentUser } from "@/lib/auth";
+} from 'lucide-react';
+import { getCurrentUser } from '@/lib/auth';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -66,30 +65,51 @@ type ServiceStatusRecord = {
 };
 
 type StatusFilter =
-  | "All"
-  | "Requested"
-  | "Scheduled"
-  | "Active"
-  | "Completed"
-  | "Cancelled";
+  | 'All'
+  | 'Requested'
+  | 'Scheduled'
+  | 'Active'
+  | 'Completed'
+  | 'Cancelled';
 
 // =========================
 // Normalise Status
 // =========================
 function normalizeStatus(status?: string): string {
-  if (!status || typeof status !== "string") return "Requested";
+  if (!status || typeof status !== 'string') return 'Requested';
 
   const lower = status.trim().toLowerCase();
 
-  if (lower.startsWith("req")) return "Requested";
-  if (lower.startsWith("sched")) return "Scheduled";
-  if (lower.startsWith("active")) return "Active";
-  if (lower.startsWith("comp")) return "Completed";
-  if (lower.startsWith("cancel")) return "Cancelled";
+  if (lower.startsWith('req')) return 'Requested';
+  if (lower.startsWith('sched')) return 'Scheduled';
+  if (lower.startsWith('active')) return 'Active';
+  if (lower.startsWith('comp')) return 'Completed';
+  if (lower.startsWith('cancel')) return 'Cancelled';
 
-  // default fallback
   const s = status.trim();
-  return s ? s.charAt(0).toUpperCase() + s.slice(1) : "Requested";
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : 'Requested';
+}
+
+function getStatusBadgeClasses(status: string): string {
+  switch (status) {
+    case 'Requested':
+      return 'bg-blue-800 text-blue-300 border border-blue-700';
+
+    case 'Scheduled':
+      return 'bg-sky-800 text-sky-300 border border-sky-700';
+
+    case 'Active':
+      return 'bg-amber-800 text-amber-300 border border-amber-700';
+
+    case 'Completed':
+      return 'bg-emerald-800 text-emerald-300 border border-emerald-700';
+
+    case 'Cancelled':
+      return 'bg-rose-800 text-rose-300 border border-rose-700';
+
+    default:
+      return 'bg-muted text-foreground';
+  }
 }
 
 // ======================================================
@@ -98,7 +118,7 @@ function normalizeStatus(status?: string): string {
 export function ServiceHistory() {
   const [records, setRecords] = useState<ServiceStatusRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('All');
 
   useEffect(() => {
     const loadHistory = async () => {
@@ -110,11 +130,11 @@ export function ServiceHistory() {
 
       try {
         const res = await fetch(`${API_URL}/api/ServiceRecord/all`, {
-          credentials: "include",
+          credentials: 'include',
         });
 
         if (!res.ok) {
-          console.error("ServiceRecord/all HTTP error:", res.status);
+          console.error('ServiceRecord/all HTTP error:', res.status);
           setRecords([]);
           return;
         }
@@ -122,12 +142,11 @@ export function ServiceHistory() {
         const data: ApiResponse = await res.json();
         const userRecords: RawRecord[] = data.byUser?.[String(user.id)] ?? [];
 
-        // Convert → ServiceStatusRecord (same structure as service-status)
         const mapped: ServiceStatusRecord[] = userRecords.map((r) => {
           const status = normalizeStatus(r.status);
 
           const rawDate = r.serviceDate;
-          let time = "—";
+          let time = '—';
           let dateMs: number | null = null;
 
           if (rawDate) {
@@ -135,18 +154,18 @@ export function ServiceHistory() {
             if (!Number.isNaN(d.getTime())) {
               dateMs = d.getTime();
               time = d.toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
+                hour: '2-digit',
+                minute: '2-digit',
               });
             }
           }
 
           return {
             id: r.id,
-            vehicle: r.vehicleName ?? "Unknown vehicle",
+            vehicle: r.vehicleName ?? 'Unknown vehicle',
             plate: r.vehiclePlate,
-            workshop: r.workshopName ?? "Unknown workshop",
-            serviceName: r.serviceName ?? "Unknown service",
+            workshop: r.workshopName ?? 'Unknown workshop',
+            serviceName: r.serviceName ?? 'Unknown service',
             status,
             rawStatus: r.status,
             date: rawDate,
@@ -158,7 +177,7 @@ export function ServiceHistory() {
 
         setRecords(mapped);
       } catch (err) {
-        console.error("ServiceHistory fetch error:", err);
+        console.error('ServiceHistory fetch error:', err);
         setRecords([]);
       } finally {
         setLoading(false);
@@ -174,7 +193,7 @@ export function ServiceHistory() {
 
   const totalServices = records.length;
 
-  const completed = records.filter((r) => r.status === "Completed");
+  const completed = records.filter((r) => r.status === 'Completed');
   const totalCompleted = completed.length;
 
   const lastCompleted =
@@ -185,7 +204,7 @@ export function ServiceHistory() {
       : null;
 
   const scheduled = records.filter(
-    (r) => r.status === "Scheduled" && r.dateMs !== null
+    (r) => r.status === 'Scheduled' && r.dateMs !== null
   );
 
   const nextAppointment =
@@ -201,17 +220,17 @@ export function ServiceHistory() {
   // FILTERED VIEW
   // ======================================================
   const filteredRecords =
-    statusFilter === "All"
+    statusFilter === 'All'
       ? records
       : records.filter((r) => r.status === statusFilter);
 
   const statusOptions: StatusFilter[] = [
-    "All",
-    "Requested",
-    "Scheduled",
-    "Active",
-    "Completed",
-    "Cancelled",
+    'All',
+    'Requested',
+    'Scheduled',
+    'Active',
+    'Completed',
+    'Cancelled',
   ];
 
   // ======================================================
@@ -237,8 +256,8 @@ export function ServiceHistory() {
           <Calendar className="h-8 w-8 text-blue-500 mb-2" />
           <p className="text-3xl font-bold">
             {lastCompleted?.dateMs
-              ? new Date(lastCompleted.dateMs).toLocaleDateString("en-GB")
-              : "—"}
+              ? new Date(lastCompleted.dateMs).toLocaleDateString('en-GB')
+              : '—'}
           </p>
           <p className="text-sm text-muted-foreground">Last Completed</p>
         </Card>
@@ -247,8 +266,8 @@ export function ServiceHistory() {
           <Calendar className="h-8 w-8 text-indigo-500 mb-2" />
           <p className="text-3xl font-bold">
             {nextAppointment?.dateMs
-              ? new Date(nextAppointment.dateMs).toLocaleDateString("en-GB")
-              : "—"}
+              ? new Date(nextAppointment.dateMs).toLocaleDateString('en-GB')
+              : '—'}
           </p>
           <p className="text-sm text-muted-foreground">Next Appointment</p>
         </Card>
@@ -266,7 +285,7 @@ export function ServiceHistory() {
           <Button
             key={status}
             size="sm"
-            variant={statusFilter === status ? "default" : "outline"}
+            variant={statusFilter === status ? 'default' : 'outline'}
             onClick={() => setStatusFilter(status)}
             className="rounded-full px-4"
           >
@@ -291,7 +310,7 @@ export function ServiceHistory() {
           <div className="space-y-4">
             {filteredRecords.map((record, idx) => (
               <ServiceStatusCard
-                key={`${record.id || "record"}-${idx}`}
+                key={`${record.id || 'record'}-${idx}`}
                 record={record}
               />
             ))}
@@ -303,7 +322,7 @@ export function ServiceHistory() {
 }
 
 // ======================================================
-// CARD COMPONENT (from service-status)
+// CARD COMPONENT
 // ======================================================
 function ServiceStatusCard({ record }: { record: ServiceStatusRecord }) {
   const hasValidDate = record.dateMs !== null;
@@ -324,28 +343,30 @@ function ServiceStatusCard({ record }: { record: ServiceStatusRecord }) {
             <p className="text-sm text-muted-foreground">{record.workshop}</p>
           </div>
         </div>
-        <Badge>{record.status}</Badge>
+        <Badge className={getStatusBadgeClasses(record.status)}>
+          {record.status}
+        </Badge>
       </div>
 
       {/* Middle row: service name */}
       <div className="mb-4">
         <p className="text-sm text-muted-foreground">
-          Service:{" "}
+          Service:{' '}
           <span className="font-medium text-foreground">
             {record.serviceName}
           </span>
         </p>
       </div>
 
-      {/* Date & time row */}
+      {/* Date and time row */}
       <div className="grid sm:grid-cols-2 gap-3 bg-muted/50 p-4 rounded-lg mb-4">
         <div className="flex items-center gap-2 text-sm">
           <Calendar className="h-4 w-4 text-muted-foreground" />
           <span className="text-muted-foreground">Date:</span>
           <span className="font-medium">
             {hasValidDate
-              ? new Date(record.dateMs!).toLocaleDateString("en-GB")
-              : "—"}
+              ? new Date(record.dateMs!).toLocaleDateString('en-GB')
+              : '—'}
           </span>
         </div>
 
@@ -353,7 +374,7 @@ function ServiceStatusCard({ record }: { record: ServiceStatusRecord }) {
           <Clock className="h-4 w-4 text-muted-foreground" />
           <span className="text-muted-foreground">Time:</span>
           <span className="font-medium">
-            {hasValidDate ? record.time : "—"}
+            {hasValidDate ? record.time : '—'}
           </span>
         </div>
       </div>

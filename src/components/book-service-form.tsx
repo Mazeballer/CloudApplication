@@ -25,6 +25,8 @@ import {
   Wrench,
   Zap,
   Hammer,
+  Search,
+  Copy as CopyIcon,
 } from 'lucide-react';
 
 import type { LatLngExpression } from 'leaflet';
@@ -34,8 +36,10 @@ import { createServiceBooking } from '@/lib/serviceRecord';
 import { useWorkshops } from '@/contexts/WorkshopContext';
 import { useVehicles } from '@/contexts/VehiclesContext';
 import { useServices } from '@/contexts/ServiceContext';
+import { useToast } from '@/hooks/use-toast';
+import { notify } from '@/lib/toast';
 
-// Load Leaflet map only on client
+// load Leaflet map only on client
 const WorkshopMap = dynamic(
   () => import('@/components/workshop-map').then((m) => m.WorkshopMap),
   { ssr: false }
@@ -122,7 +126,20 @@ function distanceKm(a: LatLngExpression, b: LatLngExpression) {
   return R * c;
 }
 
+// map JS weekday index to lowercase keys
+const JS_DAY_NAMES = [
+  'sunday',
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+] as const;
+
 export function BookServiceForm() {
+  const { toast } = useToast();
+
   const [submitted, setSubmitted] = useState(false);
   const [selectedWorkshop, setSelectedWorkshop] = useState<any>(null);
   const [selectedService, setSelectedService] = useState<any>(null);
@@ -140,6 +157,10 @@ export function BookServiceForm() {
   );
   const [locationError, setLocationError] = useState<string | null>(null);
 
+  // list and search
+  const [viewMode, setViewMode] = useState<'all' | 'nearby'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+
   const { workshops, loading: loadingWorkshops } = useWorkshops();
   const { vehicles, loading: loadingVehicles } = useVehicles();
   const { servicesByWorkshop, loading: loadingServices } = useServices();
@@ -155,7 +176,7 @@ export function BookServiceForm() {
     [workshops]
   );
 
-  // nearest 5 workshops based on user location (if we have coords)
+  // nearest 5 workshops based on user location if we have coords
   const nearestWorkshops = useMemo(() => {
     if (userLocation) {
       const withCoords = visibleWorkshops.filter(
@@ -177,9 +198,36 @@ export function BookServiceForm() {
       }
     }
 
-    // fallback: just first 5 approved
     return visibleWorkshops.slice(0, 5);
   }, [visibleWorkshops, userLocation]);
+
+  // which list is active: all or nearby
+  const baseList = useMemo(
+    () => (viewMode === 'nearby' ? nearestWorkshops : visibleWorkshops),
+    [viewMode, visibleWorkshops, nearestWorkshops]
+  );
+
+  // apply search to active list
+  const filteredWorkshops = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return baseList;
+
+    return baseList.filter((w: any) => {
+      const name = (w.name ?? '').toLowerCase();
+      const addressText = [
+        w.address?.street,
+        w.address?.city,
+        w.address?.state,
+        w.address?.postcode,
+        w.address?.country,
+      ]
+        .filter(Boolean)
+        .join(', ')
+        .toLowerCase();
+
+      return name.includes(q) || addressText.includes(q);
+    });
+  }, [baseList, searchQuery]);
 
   const services = selectedWorkshop
     ? (servicesByWorkshop[selectedWorkshop.id] || []).filter(
@@ -194,6 +242,21 @@ export function BookServiceForm() {
 
   const handleServiceSelect = (service: any) => {
     setSelectedService(service);
+  };
+
+  const handleCopyAddress = async (
+    address: string,
+    event?: React.MouseEvent
+  ) => {
+    // do not trigger card click
+    event?.stopPropagation();
+
+    try {
+      await navigator.clipboard.writeText(address);
+      notify.success('Address copied');
+    } catch {
+      notify.error('Clipboard is not available in this browser.');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -239,15 +302,26 @@ export function BookServiceForm() {
   useEffect(() => {
     if (!selectedDate || !selectedWorkshop) return;
 
-    const d = new Date(selectedDate);
-    const dayName = d.toLocaleDateString('en-GB', { weekday: 'long' });
+    const d = new Date(`${selectedDate}T00:00:00`);
+    const weekdayLabel = d.toLocaleDateString('en-MY', { weekday: 'long' });
+
+    // key to match our stored hours
+    const key = JS_DAY_NAMES[d.getDay()];
 
     const dayHours = selectedWorkshop.hours?.hoursByDay?.find(
-      (x: any) => x.day === dayName
+      (x: any) => x.day && x.day.toLowerCase() === key
     );
 
     if (!dayHours || !dayHours.isOpen) {
-      setClosedMessage(`This workshop is closed on ${dayName}.`);
+      setClosedMessage(`This workshop is closed on ${weekdayLabel}.`);
+      setTimeSlots([]);
+      return;
+    }
+
+    if (!dayHours.startTime || !dayHours.endTime) {
+      setClosedMessage(
+        `This workshop has no operating hours set for ${weekdayLabel}.`
+      );
       setTimeSlots([]);
       return;
     }
@@ -287,7 +361,7 @@ export function BookServiceForm() {
 
     if (userLocation) return userLocation;
 
-    const firstWithCoords = nearestWorkshops.find(
+    const firstWithCoords = filteredWorkshops.find(
       (w: any) => w.latitude && w.longitude
     );
     if (firstWithCoords) {
@@ -297,6 +371,11 @@ export function BookServiceForm() {
     return defaultCenter;
   })();
 
+  // markers for map
+  const mapWorkshops = selectedWorkshop
+    ? [selectedWorkshop]
+    : filteredWorkshops;
+
   if (submitted) {
     return (
       <Card className="p-12 text-center max-w-2xl mx-auto">
@@ -305,9 +384,7 @@ export function BookServiceForm() {
             <CheckCircle className="h-10 w-10 text-green-500" />
           </div>
         </div>
-        <h2 className="text-3xl font-bold mb-4">
-          Service Booked Successfully!
-        </h2>
+        <h2 className="text-3xl font-bold mb-4">Service Booked Successfully</h2>
         <p className="text-muted-foreground mb-6">
           Your appointment at {selectedWorkshop?.name} has been confirmed for{' '}
           {selectedDate} at {selectedTime}.
@@ -323,11 +400,11 @@ export function BookServiceForm() {
     <div className="grid lg:grid-cols-2 gap-6">
       {/* LEFT COLUMN */}
       <div className="space-y-6">
-        {/* Map with nearest 5 workshops */}
+        {/* Map */}
         <Card className="overflow-hidden h-80">
           <WorkshopMap
             center={mapCenter}
-            workshops={nearestWorkshops}
+            workshops={mapWorkshops}
             userLocation={userLocation}
           />
           {locationError && (
@@ -337,73 +414,133 @@ export function BookServiceForm() {
           )}
         </Card>
 
-        {/* Workshop List: nearest 5 only */}
+        {/* Workshop controls and list */}
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold">Select Workshop</h3>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h3 className="text-lg font-semibold">Select Workshop</h3>
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={viewMode === 'all' ? 'default' : 'outline'}
+                onClick={() => setViewMode('all')}
+              >
+                All
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={viewMode === 'nearby' ? 'default' : 'outline'}
+                onClick={() => setViewMode('nearby')}
+                disabled={!userLocation && nearestWorkshops.length === 0}
+              >
+                Nearby
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative w-full sm:max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search workshop or location"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 sm:mt-0">
+              Showing {filteredWorkshops.length}{' '}
+              {viewMode === 'nearby' ? 'nearby ' : ''}
+              workshop{filteredWorkshops.length === 1 ? '' : 's'}
+            </p>
+          </div>
 
           {loadingWorkshops && (
             <p className="text-muted-foreground">Loading workshops...</p>
           )}
 
           {!loadingWorkshops &&
-            nearestWorkshops.map((workshop: any) => (
-              <Card
-                key={workshop.id}
-                className={`group relative p-5 cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 ${
-                  selectedWorkshop?.id === workshop.id
-                    ? 'ring-2 ring-primary shadow-md bg-primary/5'
-                    : 'hover:border-primary/50'
-                }`}
-                onClick={() => handleWorkshopSelect(workshop)}
-              >
-                {selectedWorkshop?.id === workshop.id && (
-                  <div className="absolute top-3 right-3">
-                    <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
-                      <CheckCircle className="h-5 w-5 text-primary-foreground" />
-                    </div>
-                  </div>
-                )}
+            filteredWorkshops.map((workshop: any) => {
+              const addressText = [
+                workshop.address?.street,
+                workshop.address?.city,
+                workshop.address?.state,
+                workshop.address?.postcode,
+                workshop.address?.country,
+              ]
+                .filter(Boolean)
+                .join(', ');
 
-                <div className="space-y-3">
-                  <div className="pr-10">
-                    <h4 className="font-bold text-lg mb-1.5 group-hover:text-primary transition-colors">
-                      {workshop.name}
-                    </h4>
-                    <span className="line-clamp-2">
-                      {[
-                        workshop.address?.street,
-                        workshop.address?.city,
-                        workshop.address?.state,
-                        workshop.address?.postcode,
-                        workshop.address?.country,
-                      ]
-                        .filter(Boolean)
-                        .join(', ')}
-                    </span>
-                  </div>
-
-                  <div className="border-t border-border/50" />
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                      <span className="font-semibold text-sm">
-                        {workshop.rating}
-                      </span>
-                      <span className="text-xs text-muted-foreground ml-1">
-                        rating
-                      </span>
-                    </div>
-                  </div>
-
+              return (
+                <Card
+                  key={workshop.id}
+                  className={`group relative p-5 cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 ${
+                    selectedWorkshop?.id === workshop.id
+                      ? 'ring-2 ring-primary shadow-md bg-primary/5'
+                      : 'hover:border-primary/50'
+                  }`}
+                  onClick={() => handleWorkshopSelect(workshop)}
+                >
                   {selectedWorkshop?.id === workshop.id && (
-                    <Badge className="w-full justify-center" variant="default">
-                      ✓ Workshop Selected
-                    </Badge>
+                    <div className="absolute top-3 right-3">
+                      <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
+                        <CheckCircle className="h-5 w-5 text-primary-foreground" />
+                      </div>
+                    </div>
                   )}
-                </div>
-              </Card>
-            ))}
+
+                  <div className="space-y-3">
+                    <div className="pr-10 space-y-1.5">
+                      <h4 className="font-bold text-lg group-hover:text-primary transition-colors">
+                        {workshop.name}
+                      </h4>
+
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="line-clamp-2 text-sm">
+                          {addressText}
+                        </span>
+                        {addressText && (
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="outline"
+                            className="h-8 w-8 shrink-0"
+                            onClick={(e) => handleCopyAddress(addressText, e)}
+                          >
+                            <CopyIcon className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="border-t border-border/50" />
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                        <span className="font-semibold text-sm">
+                          {workshop.rating}
+                        </span>
+                        <span className="text-xs text-muted-foreground ml-1">
+                          rating
+                        </span>
+                      </div>
+                    </div>
+
+                    {selectedWorkshop?.id === workshop.id && (
+                      <Badge
+                        className="w-full justify-center"
+                        variant="default"
+                      >
+                        ✓ Workshop Selected
+                      </Badge>
+                    )}
+                  </div>
+                </Card>
+              );
+            })}
         </div>
       </div>
 

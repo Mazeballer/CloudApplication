@@ -1,8 +1,10 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import 'leaflet/dist/leaflet.css';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import type { LatLngExpression } from 'leaflet';
+import L from 'leaflet';
 
 type Address = {
   street?: string;
@@ -31,6 +33,12 @@ export function WorkshopMap({
   workshops,
   userLocation,
 }: WorkshopMapProps) {
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   // Normalize center to [lat, lng] array
   const centerArray: [number, number] = Array.isArray(center)
     ? (center as [number, number])
@@ -38,6 +46,29 @@ export function WorkshopMap({
 
   // When key changes React remounts the map, so it appears centered correctly
   const mapKey = `map-${centerArray[0]}-${centerArray[1]}`;
+
+  const workshopIcon = L.icon({
+    iconUrl: '/location-pin.png',
+    iconSize: [36, 36],
+    iconAnchor: [18, 36],
+    popupAnchor: [0, -36],
+  });
+
+  const userIcon = L.icon({
+    iconUrl: '/user-pin.png',
+    iconSize: [32, 32],
+    iconAnchor: [16, 32],
+    popupAnchor: [0, -30],
+  });
+
+  // Don't render the map until the component is mounted
+  if (!isMounted) {
+    return (
+      <div className="h-full w-full flex items-center justify-center bg-muted">
+        <p className="text-muted-foreground">Loading map...</p>
+      </div>
+    );
+  }
 
   return (
     <MapContainer
@@ -53,9 +84,9 @@ export function WorkshopMap({
       />
 
       {userLocation && (
-        <Marker position={userLocation}>
+        <Marker position={userLocation} icon={userIcon}>
           <Popup>
-            <strong>Your location</strong>
+            <strong>You are here</strong>
           </Popup>
         </Marker>
       )}
@@ -66,6 +97,7 @@ export function WorkshopMap({
           <Marker
             key={w.id}
             position={[w.latitude as number, w.longitude as number]}
+            icon={workshopIcon}
           >
             <Popup>
               <strong>{w.name}</strong>

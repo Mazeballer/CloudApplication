@@ -18,15 +18,14 @@ interface WorkshopAddress {
   country: string;
 }
 
-interface DailyHours {
-  day: string;
+export interface DailyHours {
+  day: string; // "monday", "tuesday", ...
   isOpen: boolean;
   startTime: string | null;
   endTime: string | null;
 }
 
 interface WorkshopHours {
-  // make this an array so it works with hours.hoursByDay.map(...)
   hoursByDay: DailyHours[];
 }
 
@@ -37,11 +36,11 @@ export interface Workshop {
   hours: WorkshopHours;
   rating: number;
 
-  // new fields for maps and filtering
+  // extra fields for map and filters
   latitude?: number | null;
   longitude?: number | null;
-  status?: string | null; // could be "Approved" or "Pending"
-  approvalStatus?: string | null; // in case backend uses this
+  status?: string | null;
+  approvalStatus?: string | null;
 }
 
 interface WorkshopContextType {
@@ -51,6 +50,47 @@ interface WorkshopContextType {
   loading: boolean;
   error: string | null;
   refreshWorkshops: () => Promise<void>;
+}
+
+const DAY_ORDER = [
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+] as const;
+
+type DayName = (typeof DAY_ORDER)[number];
+
+function normaliseHours(input: any[]): DailyHours[] {
+  const map = new Map<DayName, DailyHours>();
+
+  for (const h of input || []) {
+    if (!h) continue;
+    const key = String(h.day ?? '').toLowerCase() as DayName;
+    if (!DAY_ORDER.includes(key)) continue;
+
+    map.set(key, {
+      day: key,
+      isOpen: Boolean(h.isOpen),
+      startTime: h.startTime ?? null,
+      endTime: h.endTime ?? null,
+    });
+  }
+
+  // Always return all 7 days in order
+  return DAY_ORDER.map((day) => {
+    return (
+      map.get(day) ?? {
+        day,
+        isOpen: false,
+        startTime: null,
+        endTime: null,
+      }
+    );
+  });
 }
 
 const WorkshopContext = createContext<WorkshopContextType | null>(null);
@@ -73,36 +113,52 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
 
-      // get all workshops for driver side
+      // 1) all workshops for drivers
       const data = await getWorkshops();
 
-      const formatted: Workshop[] = data.map((w: any) => ({
-        id: w.id,
-        name: w.name ?? w.workshopName ?? w.WorkshopName,
-        address: w.address,
-        // API usually returns operatingHours from the controller
-        hours: w.operatingHours ?? w.hours ?? { hoursByDay: [] },
-        rating: w.rating ?? 0,
-        latitude: w.latitude ?? w.geoLatitude ?? w.GeoLatitude ?? null,
-        longitude: w.longitude ?? w.geoLongitude ?? w.GeoLongitude ?? null,
-        status: w.status ?? w.approvalStatus ?? w.ApprovalStatus ?? null,
-        approvalStatus: w.approvalStatus ?? w.ApprovalStatus ?? null,
-      }));
+      const formatted: Workshop[] = data.map((w: any) => {
+        const rawHours = w.operatingHours ?? w.OperatingHours ?? w.hours ?? {};
+        const rawHoursByDay: DailyHours[] =
+          rawHours.hoursByDay ?? rawHours.HoursByDay ?? [];
 
-      // if logged in as workshop, also load their own profile
+        const hoursByDay = normaliseHours(rawHoursByDay);
+
+        return {
+          id: w.id ?? w.Id,
+          name: w.name ?? w.workshopName ?? w.WorkshopName,
+          address: w.address,
+          hours: { hoursByDay },
+          rating: w.rating ?? w.Rating ?? 0,
+          latitude: w.latitude ?? w.geoLatitude ?? w.GeoLatitude ?? null,
+          longitude: w.longitude ?? w.geoLongitude ?? w.GeoLongitude ?? null,
+          status: w.status ?? w.approvalStatus ?? w.ApprovalStatus ?? null,
+          approvalStatus: w.approvalStatus ?? w.ApprovalStatus ?? null,
+        };
+      });
+
+      // 2) current workshop for workshop owner
       if (userType === 'Workshop') {
         const currentData = await getCurrentWorkshops(user.email);
         const workshop = currentData?.workshops?.[0];
 
         if (workshop) {
+          const rawHours =
+            workshop.operatingHours ??
+            workshop.OperatingHours ??
+            workshop.hours ??
+            {};
+
+          const rawHoursByDay: DailyHours[] =
+            rawHours.hoursByDay ?? rawHours.HoursByDay ?? [];
+
+          const hoursByDay = normaliseHours(rawHoursByDay);
+
           const formattedCurrent: Workshop = {
             id: workshop.id ?? workshop.Id,
             name:
               workshop.name ?? workshop.workshopName ?? workshop.WorkshopName,
             address: workshop.address,
-            hours: workshop.operatingHours ??
-              workshop.OperatingHours ??
-              workshop.hours ?? { hoursByDay: [] },
+            hours: { hoursByDay },
             rating: workshop.rating ?? workshop.Rating ?? 0,
             latitude:
               workshop.latitude ??
@@ -141,7 +197,6 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (authLoading) return;
-
     if (user?.email) {
       refreshWorkshops();
     }
