@@ -1,23 +1,24 @@
-import { Suspense } from 'react';
-import type { Metadata } from 'next';
-import { ResetPasswordClient } from '@/components/reset-password-client';
+import { Suspense } from "react";
+import type { Metadata } from "next";
+import { ResetPasswordClient } from "@/components/reset-password-client";
 
 export const metadata: Metadata = {
-  title: 'Reset password | AutoCare+',
+  title: "Reset password | AutoCare+",
 };
 
 type ResetPasswordPageProps = {
-  searchParams: {
+  searchParams: Promise<{
     email?: string;
     token?: string;
-  };
+  }>;
 };
 
-export default function ResetPasswordPage({
+export default async function ResetPasswordPage({
   searchParams,
 }: ResetPasswordPageProps) {
-  const email = searchParams.email ?? '';
-  const token = searchParams.token ?? '';
+  const params = await searchParams;
+  const email = params.email ?? "";
+  const token = params.token ?? "";
 
   return (
     <Suspense

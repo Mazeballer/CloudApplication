@@ -1,18 +1,18 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import { ArrowLeft, CheckCircle2, Eye, EyeOff, Car } from 'lucide-react';
+} from "@/components/ui/card";
+import { ArrowLeft, CheckCircle2, Eye, EyeOff, Car } from "lucide-react";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -27,46 +27,46 @@ export function ResetPasswordClient({
 }: ResetPasswordClientProps) {
   const router = useRouter();
 
-  const [password, setPassword] = useState<string>('');
-  const [confirmPassword, setConfirmPassword] = useState<string>('');
+  const [password, setPassword] = useState<string>("");
+  const [confirmPassword, setConfirmPassword] = useState<string>("");
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [showConfirmPassword, setShowConfirmPassword] =
     useState<boolean>(false);
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [passwordError, setPasswordError] = useState<string>('');
-  const [serverError, setServerError] = useState<string>('');
+  const [passwordError, setPasswordError] = useState<string>("");
+  const [serverError, setServerError] = useState<string>("");
 
   const hasValidParams = Boolean(email && token);
 
   const validatePassword = (pwd: string) => {
     if (pwd.length < 8) {
-      return 'Password must be at least 8 characters';
+      return "Password must be at least 8 characters";
     }
     if (!/[A-Z]/.test(pwd)) {
-      return 'Password must contain at least one uppercase letter';
+      return "Password must contain at least one uppercase letter";
     }
     if (!/[a-z]/.test(pwd)) {
-      return 'Password must contain at least one lowercase letter';
+      return "Password must contain at least one lowercase letter";
     }
     if (!/[0-9]/.test(pwd)) {
-      return 'Password must contain at least one number';
+      return "Password must contain at least one number";
     }
-    return '';
+    return "";
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setPasswordError('');
-    setServerError('');
+    setPasswordError("");
+    setServerError("");
 
     if (!hasValidParams) {
-      setPasswordError('Reset link is invalid or has expired');
+      setPasswordError("Reset link is invalid or has expired");
       return;
     }
 
     if (!password || !confirmPassword) {
-      setPasswordError('Please fill in all fields');
+      setPasswordError("Please fill in all fields");
       return;
     }
 
@@ -77,13 +77,13 @@ export function ResetPasswordClient({
     }
 
     if (password !== confirmPassword) {
-      setPasswordError('Passwords do not match');
+      setPasswordError("Passwords do not match");
       return;
     }
 
     if (!API_BASE_URL) {
-      console.error('NEXT_PUBLIC_API_URL is not set');
-      setServerError('Configuration error. Please contact support.');
+      console.error("NEXT_PUBLIC_API_URL is not set");
+      setServerError("Configuration error. Please contact support.");
       return;
     }
 
@@ -91,8 +91,8 @@ export function ResetPasswordClient({
 
     try {
       const res = await fetch(`${API_BASE_URL}/api/auth/reset-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email,
           token,
@@ -102,20 +102,20 @@ export function ResetPasswordClient({
       });
 
       if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        console.error('Reset password failed', text);
+        const text = await res.text().catch(() => "");
+        console.error("Reset password failed", text);
         setServerError(
-          'Failed to reset password. The link may be invalid or expired.'
+          "Failed to reset password. The link may be invalid or expired."
         );
         return;
       }
 
       setIsSubmitted(true);
-      setPassword('');
-      setConfirmPassword('');
+      setPassword("");
+      setConfirmPassword("");
     } catch (err) {
       console.error(err);
-      setServerError('Something went wrong. Please try again in a moment.');
+      setServerError("Something went wrong. Please try again in a moment.");
     } finally {
       setIsLoading(false);
     }
@@ -125,7 +125,7 @@ export function ResetPasswordClient({
   useEffect(() => {
     if (!isSubmitted) return;
     const timeoutId = setTimeout(() => {
-      router.push('/login');
+      router.push("/login");
     }, 2000);
 
     return () => clearTimeout(timeoutId);
@@ -195,10 +195,10 @@ export function ResetPasswordClient({
             <CardTitle className="text-2xl">Create a new password</CardTitle>
             <CardDescription>
               {isSubmitted
-                ? 'Your password has been reset successfully'
+                ? "Your password has been reset successfully"
                 : hasValidParams
-                ? 'Enter a strong password to secure your account'
-                : 'This reset link is invalid or has expired'}
+                ? "Enter a strong password to secure your account"
+                : "This reset link is invalid or has expired"}
             </CardDescription>
           </CardHeader>
 
@@ -213,7 +213,7 @@ export function ResetPasswordClient({
                   <div className="relative">
                     <Input
                       id="password"
-                      type={showPassword ? 'text' : 'password'}
+                      type={showPassword ? "text" : "password"}
                       placeholder="Enter your new password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
@@ -245,7 +245,7 @@ export function ResetPasswordClient({
                   <div className="relative">
                     <Input
                       id="confirm-password"
-                      type={showConfirmPassword ? 'text' : 'password'}
+                      type={showConfirmPassword ? "text" : "password"}
                       placeholder="Confirm your password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
@@ -276,28 +276,28 @@ export function ResetPasswordClient({
                   <ul className="text-xs text-blue-800 dark:text-blue-200 space-y-1">
                     <li
                       className={
-                        password.length >= 8 ? 'line-through opacity-50' : ''
+                        password.length >= 8 ? "line-through opacity-50" : ""
                       }
                     >
                       ✓ At least 8 characters
                     </li>
                     <li
                       className={
-                        /[A-Z]/.test(password) ? 'line-through opacity-50' : ''
+                        /[A-Z]/.test(password) ? "line-through opacity-50" : ""
                       }
                     >
                       ✓ One uppercase letter
                     </li>
                     <li
                       className={
-                        /[a-z]/.test(password) ? 'line-through opacity-50' : ''
+                        /[a-z]/.test(password) ? "line-through opacity-50" : ""
                       }
                     >
                       ✓ One lowercase letter
                     </li>
                     <li
                       className={
-                        /[0-9]/.test(password) ? 'line-through opacity-50' : ''
+                        /[0-9]/.test(password) ? "line-through opacity-50" : ""
                       }
                     >
                       ✓ One number
@@ -333,14 +333,14 @@ export function ResetPasswordClient({
                     !hasValidParams
                   }
                 >
-                  {isLoading ? 'Resetting...' : 'Reset password'}
+                  {isLoading ? "Resetting..." : "Reset password"}
                 </Button>
 
                 <Button
                   type="button"
                   variant="ghost"
                   className="w-full flex items-center justify-center gap-2"
-                  onClick={() => router.push('/login')}
+                  onClick={() => router.push("/login")}
                 >
                   <ArrowLeft className="w-4 h-4" />
                   Back to sign in
@@ -358,7 +358,7 @@ export function ResetPasswordClient({
                   </p>
                 </div>
                 <Button
-                  onClick={() => router.push('/forgot-password')}
+                  onClick={() => router.push("/forget-password")}
                   className="w-full bg-primary hover:bg-primary/90 text-white"
                 >
                   Request new reset link
@@ -383,7 +383,7 @@ export function ResetPasswordClient({
                 </div>
 
                 <Button
-                  onClick={() => router.push('/login')}
+                  onClick={() => router.push("/login")}
                   className="w-full bg-primary hover:bg-primary/90 text-white"
                 >
                   Go to sign in

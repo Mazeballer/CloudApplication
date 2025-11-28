@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import {
   ArrowLeft,
   Calendar,
@@ -11,11 +11,14 @@ import {
   AlertTriangle,
   Bell,
   Gauge,
-} from 'lucide-react';
-import Link from 'next/link';
-import { useVehicles } from '@/contexts/VehiclesContext';
-import { useEffect, useState } from 'react';
-import { getCurrentUser } from '@/lib/auth';
+  Fuel,
+} from "lucide-react";
+import Link from "next/link";
+import { useVehicles } from "@/contexts/VehiclesContext";
+import { useEffect, useState } from "react";
+import { getCurrentUser } from "@/lib/auth";
+import { estimateNextOilChange } from "@/lib/oilEstimator";
+import { useServiceRecords } from "@/contexts/ServiceRecordContext";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -31,18 +34,18 @@ type RawRecord = {
   componentTypes?: string[];
 };
 
-type PartStatus = 'good' | 'warning' | 'critical' | 'unknown';
+type PartStatus = "good" | "warning" | "critical" | "unknown";
 
 type PartKey =
-  | 'EngineOil'
-  | 'BrakePads'
-  | 'Tyres'
-  | 'Battery'
-  | 'AirFilter'
-  | 'CabinFilter'
-  | 'Coolant'
-  | 'SparkPlugs'
-  | 'TransmissionFluid';
+  | "EngineOil"
+  | "BrakePads"
+  | "Tyres"
+  | "Battery"
+  | "AirFilter"
+  | "CabinFilter"
+  | "Coolant"
+  | "SparkPlugs"
+  | "TransmissionFluid";
 
 type PartConfig = {
   key: PartKey;
@@ -59,17 +62,17 @@ type PartHealth = {
 };
 
 const PARTS_CONFIG: PartConfig[] = [
-  { key: 'EngineOil', label: 'Engine oil', expectedLifeMonths: 6 },
-  { key: 'BrakePads', label: 'Brake pads', expectedLifeMonths: 24 },
-  { key: 'Tyres', label: 'Tyres', expectedLifeMonths: 36 },
-  { key: 'Battery', label: 'Battery', expectedLifeMonths: 48 },
-  { key: 'AirFilter', label: 'Air filter', expectedLifeMonths: 18 },
-  { key: 'CabinFilter', label: 'Cabin filter', expectedLifeMonths: 18 },
-  { key: 'Coolant', label: 'Coolant system', expectedLifeMonths: 48 },
-  { key: 'SparkPlugs', label: 'Spark plugs', expectedLifeMonths: 48 },
+  { key: "EngineOil", label: "Engine oil", expectedLifeMonths: 6 },
+  { key: "BrakePads", label: "Brake pads", expectedLifeMonths: 24 },
+  { key: "Tyres", label: "Tyres", expectedLifeMonths: 36 },
+  { key: "Battery", label: "Battery", expectedLifeMonths: 48 },
+  { key: "AirFilter", label: "Air filter", expectedLifeMonths: 18 },
+  { key: "CabinFilter", label: "Cabin filter", expectedLifeMonths: 18 },
+  { key: "Coolant", label: "Coolant system", expectedLifeMonths: 48 },
+  { key: "SparkPlugs", label: "Spark plugs", expectedLifeMonths: 48 },
   {
-    key: 'TransmissionFluid',
-    label: 'Transmission fluid',
+    key: "TransmissionFluid",
+    label: "Transmission fluid",
     expectedLifeMonths: 60,
   },
 ];
@@ -90,11 +93,11 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
 
       try {
         const res = await fetch(`${API_URL}/api/ServiceRecord/all`, {
-          credentials: 'include',
+          credentials: "include",
         });
 
         if (!res.ok) {
-          console.error('Failed to load service records:', res.status);
+          console.error("Failed to load service records:", res.status);
           return;
         }
 
@@ -107,7 +110,7 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
 
         setRecords(vehicleRecords);
       } catch (err) {
-        console.error('VehicleDetails fetch error:', err);
+        console.error("VehicleDetails fetch error:", err);
       } finally {
         setLoading(false);
       }
@@ -127,16 +130,16 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
     );
   }
 
-  const currentMileage = parseInt(vehicle.mileage.replace(/[^\d]/g, '')) || 0;
+  const currentMileage = parseInt(vehicle.mileage.replace(/[^\d]/g, "")) || 0;
 
   const completed = records
-    .filter((r) => r.status === 'Completed')
+    .filter((r) => r.status === "Completed")
     .sort(
       (a, b) =>
         new Date(b.serviceDate).getTime() - new Date(a.serviceDate).getTime()
     );
 
-  const scheduled = records.filter((r) => r.status === 'Scheduled');
+  const scheduled = records.filter((r) => r.status === "Scheduled");
 
   const lastServiceMileage =
     completed.length > 0 ? completed[0].serviceMileage : currentMileage;
@@ -165,7 +168,7 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
         name: part.label,
         healthPercent: 0,
         ageMonths: null,
-        status: 'unknown',
+        status: "unknown",
       };
     }
 
@@ -185,9 +188,9 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
     const healthPercent = Math.max(0, Math.min(100, 100 - usedPercentByAge));
 
     let status: PartStatus;
-    if (healthPercent >= 70) status = 'good';
-    else if (healthPercent >= 40) status = 'warning';
-    else status = 'critical';
+    if (healthPercent >= 70) status = "good";
+    else if (healthPercent >= 40) status = "warning";
+    else status = "critical";
 
     return {
       name: part.label,
@@ -198,7 +201,7 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
     };
   });
 
-  const trackedParts = partsHealth.filter((p) => p.status !== 'unknown');
+  const trackedParts = partsHealth.filter((p) => p.status !== "unknown");
 
   let overallHealthPercent = 100;
 
@@ -211,27 +214,27 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
 
   const overallStatus =
     overallHealthPercent >= 80
-      ? 'Good'
+      ? "Good"
       : overallHealthPercent >= 50
-      ? 'Fair'
-      : 'Poor';
+      ? "Fair"
+      : "Poor";
 
   const overallBadgeVariant =
-    overallStatus === 'Good'
-      ? 'default'
-      : overallStatus === 'Fair'
-      ? 'secondary'
-      : 'destructive';
+    overallStatus === "Good"
+      ? "default"
+      : overallStatus === "Fair"
+      ? "secondary"
+      : "destructive";
 
   const getPartBadgeVariant = (status: PartStatus) => {
-    if (status === 'good') return 'outline';
-    if (status === 'warning') return 'secondary';
-    if (status === 'critical') return 'destructive';
-    return 'outline';
+    if (status === "good") return "outline";
+    if (status === "warning") return "secondary";
+    if (status === "critical") return "destructive";
+    return "outline";
   };
 
   // Alerts based on critical parts only
-  const criticalParts = partsHealth.filter((p) => p.status === 'critical');
+  const criticalParts = partsHealth.filter((p) => p.status === "critical");
 
   // ------------------------------------------------------------------
 
@@ -249,7 +252,7 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
       <Card className="p-6">
         <div className="flex flex-col lg:flex-row gap-6">
           <img
-            src={vehicle.image || '/placeholder.svg'}
+            src={vehicle.image || "/placeholder.svg"}
             className="w-full lg:w-80 h-56 object-cover rounded-lg"
           />
 
@@ -333,7 +336,7 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
                     Critical components need attention
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    {criticalParts.map((p) => p.name).join(', ')}
+                    {criticalParts.map((p) => p.name).join(", ")}
                   </p>
                 </div>
                 <Badge variant="destructive">Critical</Badge>
@@ -401,50 +404,105 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
         </Card>
       </div>
 
-      {/* Car parts health by age */}
-      <Card className="p-6">
-        <h2 className="text-xl font-bold mb-4">Car Parts Health</h2>
-
-        {partsHealth.every((p) => p.status === 'unknown') ? (
-          <p className="text-sm text-muted-foreground">
-            No component data yet. Once your services include engine oil, brake
-            pads, or tyres, their health will appear here.
-          </p>
-        ) : (
-          <div className="space-y-4">
-            {partsHealth.map((part) => (
-              <div key={part.name} className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium">{part.name}</p>
-                    {part.ageMonths != null && (
-                      <p className="text-xs text-muted-foreground">
-                        Last changed about {part.ageMonths} month
-                        {part.ageMonths === 1 ? '' : 's'} ago
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-semibold">
-                      {part.healthPercent.toFixed(0)}%
-                    </p>
-                    <Badge variant={getPartBadgeVariant(part.status)}>
-                      {part.status === 'good'
-                        ? 'Good'
-                        : part.status === 'warning'
-                        ? 'Warning'
-                        : part.status === 'critical'
-                        ? 'Critical'
-                        : 'Unknown'}
-                    </Badge>
-                  </div>
-                </div>
-                <Progress value={part.healthPercent} className="h-2" />
-              </div>
-            ))}
+      <div className="grid lg:grid-cols-2 gap-6 items-start">
+        {/* Oil Change Prediction */}
+        <Card className="p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Fuel className="h-5 w-5 text-primary" />
+            <h2 className="text-xl font-bold">Oil Change Prediction</h2>
           </div>
-        )}
-      </Card>
+
+          {completed.length < 2 ? (
+            <p className="text-sm text-muted-foreground">
+              Not enough service history to estimate the next oil change. At
+              least two completed service records are required.
+            </p>
+          ) : (
+            (() => {
+              const prediction = estimateNextOilChange(
+                completed,
+                lastServiceMileage
+              );
+
+              if (prediction.error) {
+                return (
+                  <p className="text-red-500 text-sm">{prediction.error}</p>
+                );
+              }
+
+              return (
+                <div className="space-y-3">
+                  <p className="text-sm">
+                    <span className="font-medium">Average daily mileage:</span>{" "}
+                    {prediction?.dailyMileage?.toFixed(1)} km/day
+                  </p>
+
+                  <p className="text-sm">
+                    <span className="font-medium">
+                      Next oil change mileage:
+                    </span>{" "}
+                    {prediction?.nextTargetMileage?.toLocaleString()} km
+                  </p>
+
+                  <p className="text-sm">
+                    <span className="font-medium">Estimated date:</span>{" "}
+                    {prediction?.nextDate?.toDateString()}
+                  </p>
+
+                  <p className="text-xs text-muted-foreground">
+                    Based on your last two service records.
+                  </p>
+                </div>
+              );
+            })()
+          )}
+        </Card>
+
+        {/* Car parts health by age */}
+        <Card className="p-6">
+          <h2 className="text-xl font-bold mb-4">Car Parts Health</h2>
+
+          {partsHealth.every((p) => p.status === "unknown") ? (
+            <p className="text-sm text-muted-foreground">
+              No component data yet. Once your services include engine oil,
+              brake pads, or tyres, their health will appear here.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {partsHealth.map((part) => (
+                <div key={part.name} className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium">{part.name}</p>
+                      {part.ageMonths != null && (
+                        <p className="text-xs text-muted-foreground">
+                          Last changed about {part.ageMonths} month
+                          {part.ageMonths === 1 ? "" : "s"} ago
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold">
+                        {part.healthPercent.toFixed(0)}%
+                      </p>
+                      <Badge variant={getPartBadgeVariant(part.status)}>
+                        {part.status === "good"
+                          ? "Good"
+                          : part.status === "warning"
+                          ? "Warning"
+                          : part.status === "critical"
+                          ? "Critical"
+                          : "Unknown"}
+                      </Badge>
+                    </div>
+                  </div>
+                  <Progress value={part.healthPercent} className="h-2" />
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      </div>
     </div>
   );
 }
