@@ -31,18 +31,54 @@ interface ServiceRecord {
   invoiceId?: string;
 }
 
+export interface NormalizedServiceRecord {
+  id: string;
+  vehicle: string;
+  plate?: string;
+  workshop: string;
+  serviceName: string;
+  status: string; // normalized
+  rawStatus: string;
+  date: string;
+  dateMs: number | null;
+  time: string;
+  notes?: string;
+  invoiceId?: string;
+  invoicePdfUrl?: string;
+}
+
 interface ServiceRecordContextType {
   recordsByUser: Record<string, ServiceRecord[]>;
   recordsByWorkshop: Record<string, ServiceRecord[]>;
   recordsByService: Record<string, ServiceRecord[]>;
+
+  // NEW: Normalized records for UI components like service-history
+  normalizedByUser: Record<string, NormalizedServiceRecord[]>;
+
   loading: boolean;
   error: string | null;
+
   refreshServiceRecords: () => Promise<void>;
 }
 
 const ServiceRecordContext = createContext<ServiceRecordContextType | null>(
   null
 );
+
+function normalizeStatus(status?: string): string {
+  if (!status || typeof status !== "string") return "Requested";
+
+  const lower = status.trim().toLowerCase();
+
+  if (lower.startsWith("req")) return "Requested";
+  if (lower.startsWith("sched")) return "Scheduled";
+  if (lower.startsWith("active")) return "Active";
+  if (lower.startsWith("comp")) return "Completed";
+  if (lower.startsWith("cancel")) return "Cancelled";
+
+  const s = status.trim();
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : "Requested";
+}
 
 export function ServiceRecordProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
@@ -58,6 +94,7 @@ export function ServiceRecordProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // LOAD DATA
   const refreshServiceRecords = async () => {
     try {
       setLoading(true);
@@ -77,12 +114,52 @@ export function ServiceRecordProvider({ children }: { children: ReactNode }) {
     refreshServiceRecords();
   }, []);
 
+  const normalizedByUser: Record<string, NormalizedServiceRecord[]> = {};
+
+  Object.keys(recordsByUser).forEach((userId) => {
+    const list = recordsByUser[userId] ?? [];
+
+    normalizedByUser[userId] = list.map((r) => {
+      const rawDate = r.serviceDate;
+      let dateMs: number | null = null;
+      let time = "—";
+
+      if (rawDate) {
+        const d = new Date(rawDate);
+        if (!Number.isNaN(d.getTime())) {
+          dateMs = d.getTime();
+          time = d.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+        }
+      }
+
+      return {
+        id: r.id,
+        vehicle: r.vehicleName ?? "Unknown vehicle",
+        plate: (r as any).vehiclePlate,
+        workshop: r.workshopName ?? "Unknown workshop",
+        serviceName: r.serviceName ?? "Unknown service",
+        status: normalizeStatus(r.status),
+        rawStatus: r.status ?? "",
+        date: rawDate,
+        dateMs,
+        time,
+        notes: r.remarks,
+      };
+    });
+  });
+
   return (
     <ServiceRecordContext.Provider
       value={{
         recordsByUser,
         recordsByWorkshop,
         recordsByService,
+
+        normalizedByUser, // ← NEW
+
         loading,
         error,
         refreshServiceRecords,

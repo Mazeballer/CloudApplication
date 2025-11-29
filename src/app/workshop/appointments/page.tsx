@@ -7,6 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Clock, Car, Search, Filter, Eye, FileDown } from "lucide-react";
 import { WorkshopNav } from "@/components/workshop-nav";
 import { useState, useEffect } from "react";
+import { InvoiceItemsDialog } from "@/components/invoice-items-dialog";
+import { notify } from "@/lib/toast";
+import { ServiceItemInput } from "@/components/invoice-items-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,7 +44,70 @@ export default function WorkshopAppointmentsPage() {
     null
   );
 
-  // Fetch REAL service records
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+  // ------------------------------
+  // NEW STATES
+  // ------------------------------
+  const [workshopServices, setWorkshopServices] = useState<any[]>([]);
+  const [selectedVehicle, setSelectedVehicle] = useState<any | null>(null);
+
+  const deleteInvoice = async (invoiceId: string, appointmentId: string) => {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+    const res = await fetch(`${API_URL}/api/Invoice/delete/${invoiceId}`, {
+      method: "DELETE",
+    });
+
+    if (!res.ok) {
+      notify.error("Failed to delete invoice");
+      return;
+    }
+
+    notify.success("Invoice removed successfully");
+
+    // Update UI: remove invoiceId from appointment
+    setAppointments((prev) =>
+      prev.map((apt) =>
+        apt.id === appointmentId ? { ...apt, invoiceId: null } : apt
+      )
+    );
+
+    refreshServiceRecords();
+  };
+  // ------------------------------
+  // FETCH WORKSHOP SERVICES
+  // ------------------------------
+  useEffect(() => {
+    if (!user) return;
+
+    const loadServices = async () => {
+      const res = await fetch(`${API_URL}/api/services/workshop/${user.email}`);
+      if (!res.ok) return;
+
+      const data = await res.json();
+      setWorkshopServices(data.services || []);
+    };
+
+    loadServices();
+  }, [user]);
+
+  // ------------------------------
+  // FETCH VEHICLE DETAILS OF APPOINTMENT
+  // ------------------------------
+  const loadVehicleForAppointment = async (appointment: any) => {
+    const res = await fetch(`${API_URL}/api/Vehicles/${appointment.vehicleId}`);
+
+    if (!res.ok) {
+      setSelectedVehicle(null);
+      return;
+    }
+
+    const vehicle = await res.json(); // ← single vehicle object
+    setSelectedVehicle(vehicle);
+  };
+
+  // Fetch real service records
   useEffect(() => {
     if (!user || loading) return;
 
@@ -50,6 +116,7 @@ export default function WorkshopAppointmentsPage() {
 
     const mapped = workshopRecords.map((r) => ({
       id: r.id,
+      vehicleId: r.vehicleId,
       customerId: r.userId,
       customerName: r.userName,
       customerEmail: r.userEmail,
@@ -57,7 +124,7 @@ export default function WorkshopAppointmentsPage() {
       vehicle: r.vehicleName,
       service: r.serviceName,
       serviceId: r.serviceId,
-      invoiceId: r.invoiceId, // ⭐ REQUIRED FOR INVOICE FLOW
+      invoiceId: r.invoiceId,
 
       date: r.serviceDate.slice(0, 10),
       time: new Date(r.serviceDate).toLocaleTimeString("en-US", {
@@ -73,10 +140,10 @@ export default function WorkshopAppointmentsPage() {
     setAppointments(mapped);
   }, [recordsByWorkshop, loading, user, currentWorkshop]);
 
-  // Update status handler
+  // -----------------------------------
+  // UPDATE STATUS
+  // -----------------------------------
   const updateStatus = async (id: string, status: string) => {
-    const API_URL = process.env.NEXT_PUBLIC_API_URL;
-
     const res = await fetch(`${API_URL}/api/ServiceRecord/${id}/status`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -100,11 +167,61 @@ export default function WorkshopAppointmentsPage() {
     refreshServiceRecords();
   };
 
-  // ================================
-  //  Invoice: Generate
-  // ================================
-  const generateInvoice = async (appointment: any) => {
-    const API_URL = process.env.NEXT_PUBLIC_API_URL;
+  // -----------------------------------
+  //  NEW handleInvoiceSubmit
+  // -----------------------------------
+  const handleInvoiceSubmit = async ({
+    newMileage,
+    items,
+  }: {
+    newMileage: number;
+    items: ServiceItemInput[];
+  }) => {
+    if (!selectedVehicle) {
+      notify.error("Vehicle not loaded");
+      return;
+    }
+
+    const appointment = appointments.find(
+      (a) => a.vehicleId === selectedVehicle.id
+    );
+
+    if (!appointment) {
+      notify.error("Appointment not found");
+      return;
+    }
+
+    // 1. Update mileage
+    const resMileage = await fetch(
+      `${API_URL}/api/Vehicles/${selectedVehicle.id}/mileage`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newMileage),
+      }
+    );
+
+    if (!resMileage.ok) {
+      notify.error("Mileage update failed");
+      return;
+    }
+
+    // 2. Save Service Items
+    const resItems = await fetch(`${API_URL}/api/ServiceItem/add`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        serviceRecordId: appointment.id,
+        items,
+      }),
+    });
+
+    if (!resItems.ok) {
+      notify.error("Failed to save service items");
+      return;
+    }
+
+    // 3. Generate Invoice
     const payload = {
       serviceRecordId: appointment.id,
       userId: appointment.customerId,
@@ -118,55 +235,44 @@ export default function WorkshopAppointmentsPage() {
     });
 
     if (!res.ok) {
-      alert("Failed to generate invoice");
+      notify.error("Failed to generate invoice");
       return;
     }
 
-    const data = await res.json();
-
-    // Update invoiceId in UI
-    setAppointments((prev) =>
-      prev.map((apt) =>
-        apt.id === appointment.id ? { ...apt, invoiceId: data.id } : apt
-      )
-    );
-
+    notify.success("Invoice Generated!");
     refreshServiceRecords();
-    alert("Invoice generated successfully.");
   };
 
-  // ================================
-  //  Invoice: View in new tab
-  // ================================
-
-  const API_URL = process.env.NEXT_PUBLIC_API_URL;
-
+  // -----------------------------------
+  //  Invoice: View
+  // -----------------------------------
   const viewInvoice = (invoiceId: string) => {
     window.open(`${API_URL}/invoices/${invoiceId}.pdf`, "_blank");
   };
 
-  // ================================
-  //  Invoice: Download PDF
-  // ================================
+  // -----------------------------------
+  //  Invoice: Download
+  // -----------------------------------
   const downloadPdf = async (invoiceId: string) => {
-    const API_URL = process.env.NEXT_PUBLIC_API_URL;
     const res = await fetch(`${API_URL}/api/Invoice/${invoiceId}`);
 
     if (!res.ok) {
-      alert("Unable to fetch invoice");
+      notify.error("Unable to fetch invoice");
       return;
     }
 
     const invoice = await res.json();
     if (!invoice.pdfUrl) {
-      alert("Invoice PDF not available");
+      notify.error("Invoice PDF not available");
       return;
     }
 
     window.open(`${API_URL}${invoice.pdfUrl}`, "_blank");
   };
 
+  // -----------------------------------
   // SEARCH + FILTER
+  // -----------------------------------
   const filteredAppointments = appointments.filter((apt) => {
     const q = searchQuery.toLowerCase();
     const matchesSearch =
@@ -247,9 +353,12 @@ export default function WorkshopAppointmentsPage() {
                   <Card
                     key={appointment.id}
                     className="p-6 hover:shadow-lg transition-shadow"
+                    onMouseEnter={() => loadVehicleForAppointment(appointment)}
                   >
                     <div className="flex items-center justify-between gap-6">
-                      {/* Left Side */}
+                      {/* =====================
+                          LEFT SIDE
+                      ======================= */}
                       <div className="flex items-center gap-6 flex-1">
                         {/* DATE */}
                         <div className="text-center">
@@ -337,18 +446,22 @@ export default function WorkshopAppointmentsPage() {
                         </div>
                       </div>
 
-                      {/* Right Side — Invoice */}
+                      {/* =====================
+                          RIGHT SIDE — INVOICE
+                      ======================= */}
                       <div className="flex flex-col gap-2">
                         {appointment.status === "Completed" && (
                           <>
                             {!appointment.invoiceId ? (
-                              <Button
-                                size="sm"
-                                className="bg-teal-600 text-white"
-                                onClick={() => generateInvoice(appointment)}
+                              <InvoiceItemsDialog
+                                onSubmit={handleInvoiceSubmit}
+                                workshopServices={workshopServices}
+                                currentMileage={
+                                  selectedVehicle?.currentMileage ?? 0
+                                }
                               >
-                                Generate Invoice
-                              </Button>
+                                <Button size="sm">Generate Invoice</Button>
+                              </InvoiceItemsDialog>
                             ) : (
                               <>
                                 <Button
@@ -371,6 +484,19 @@ export default function WorkshopAppointmentsPage() {
                                   <FileDown className="h-4 w-4 mr-2" />
                                   Download PDF
                                 </Button>
+
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() =>
+                                    deleteInvoice(
+                                      appointment.invoiceId,
+                                      appointment.id
+                                    )
+                                  }
+                                >
+                                  Remove Invoice
+                                </Button>
                               </>
                             )}
                           </>
@@ -383,7 +509,6 @@ export default function WorkshopAppointmentsPage() {
             </div>
           )}
 
-          {/* Status Update Message */}
           {statusUpdateMessage && (
             <div className="fixed bottom-4 right-4 rounded-md bg-emerald-500 text-white px-4 py-2 shadow-lg text-sm">
               {statusUpdateMessage}
