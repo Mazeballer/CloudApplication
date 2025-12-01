@@ -36,7 +36,6 @@ import { createServiceBooking } from '@/lib/serviceRecord';
 import { useWorkshops } from '@/contexts/WorkshopContext';
 import { useVehicles } from '@/contexts/VehiclesContext';
 import { useServices } from '@/contexts/ServiceContext';
-import { useToast } from '@/hooks/use-toast';
 import { notify } from '@/lib/toast';
 
 // load Leaflet map only on client
@@ -138,8 +137,6 @@ const JS_DAY_NAMES = [
 ] as const;
 
 export function BookServiceForm() {
-  const { toast } = useToast();
-
   const [submitted, setSubmitted] = useState(false);
   const [selectedWorkshop, setSelectedWorkshop] = useState<any>(null);
   const [selectedService, setSelectedService] = useState<any>(null);
@@ -516,18 +513,6 @@ export function BookServiceForm() {
                     </div>
 
                     <div className="border-t border-border/50" />
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                        <span className="font-semibold text-sm">
-                          {workshop.rating}
-                        </span>
-                        <span className="text-xs text-muted-foreground ml-1">
-                          rating
-                        </span>
-                      </div>
-                    </div>
 
                     {selectedWorkshop?.id === workshop.id && (
                       <Badge

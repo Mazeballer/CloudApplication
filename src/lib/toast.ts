@@ -4,7 +4,7 @@ export const notify = {
   success: (msg: string) =>
     toast.success(msg, {
       style: {
-        background: '#179775ff',
+        background: '#126851ff',
         color: '#ECFDF5',
         border: '1px solid #047857',
       },
@@ -22,7 +22,7 @@ export const notify = {
   error: (msg: string) =>
     toast.error(msg, {
       style: {
-        background: '#991515ff',
+        background: '#831a1aff',
         color: '#FEE2E2',
         border: '1px solid #DC2626',
       },
