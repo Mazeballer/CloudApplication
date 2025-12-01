@@ -1,12 +1,12 @@
 // WorkshopServicesPage.tsx
 
-'use client';
+"use client";
 
-import { ProtectedRoute } from '@/components/protected-route';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+import { ProtectedRoute } from "@/components/protected-route";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import {
   Wrench,
   Search,
@@ -15,16 +15,27 @@ import {
   Loader2,
   Zap,
   Hammer,
-} from 'lucide-react';
-import { WorkshopNav } from '@/components/workshop-nav';
-import { useState } from 'react';
-import { EditServiceDialog } from '@/components/edit-service';
-import { AddServiceDialog } from '@/components/AddServiceDialog';
-import { useWorkshops } from '@/contexts/WorkshopContext';
-import { useServices } from '@/contexts/ServiceContext';
+} from "lucide-react";
+import { WorkshopNav } from "@/components/workshop-nav";
+import { useState } from "react";
+import { EditServiceDialog } from "@/components/edit-service";
+import { AddServiceDialog } from "@/components/AddServiceDialog";
+import { useWorkshops } from "@/contexts/WorkshopContext";
+import { useServices } from "@/contexts/ServiceContext";
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 
 export default function WorkshopServicesPage() {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
 
   const { currentWorkshop, loading: workshopLoading } = useWorkshops();
 
@@ -44,7 +55,7 @@ export default function WorkshopServicesPage() {
     .sort((a, b) => a.status.localeCompare(b.status)); // Show Active first
 
   const formatDuration = (totalMinutes: number) => {
-    if (totalMinutes === 0) return '0 mins';
+    if (totalMinutes === 0) return "0 mins";
 
     const hours = Math.floor(totalMinutes / 60);
     const minutes = totalMinutes % 60;
@@ -57,16 +68,14 @@ export default function WorkshopServicesPage() {
       parts.push(`${minutes} mins`);
     }
 
-    return parts.join(' ');
+    return parts.join(" ");
   };
 
   const handleActivate = async (serviceId: string) => {
-    if (!confirm('Activate this service?')) return;
-
     try {
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/services/${serviceId}/activate`,
-        { method: 'PUT' }
+        { method: "PUT" }
       );
 
       const data = await res.json();
@@ -74,17 +83,15 @@ export default function WorkshopServicesPage() {
         refreshCurrentWorkshopServices();
       }
     } catch (err) {
-      console.error('Activate error:', err);
+      console.error("Activate error:", err);
     }
   };
 
   const handleDeactivate = async (serviceId: string) => {
-    if (!confirm('Deactivate this service?')) return;
-
     try {
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/services/${serviceId}/deactivate`,
-        { method: 'PUT' }
+        { method: "PUT" }
       );
 
       const data = await res.json();
@@ -92,7 +99,7 @@ export default function WorkshopServicesPage() {
         refreshCurrentWorkshopServices();
       }
     } catch (err) {
-      console.error('Deactivate error:', err);
+      console.error("Deactivate error:", err);
     }
   };
 
@@ -150,7 +157,7 @@ export default function WorkshopServicesPage() {
               <Card
                 key={service.id}
                 className={`p-6 flex flex-col hover:shadow-lg transition-shadow min-h-[350px] ${
-                  service.status === 'Inactive' ? 'opacity-50' : ''
+                  service.status === "Inactive" ? "opacity-50" : ""
                 }`}
               >
                 {/* HEADER */}
@@ -161,19 +168,19 @@ export default function WorkshopServicesPage() {
                     <div className="flex gap-2 items-center">
                       <Badge
                         className={
-                          service.category === 'Maintenance'
-                            ? 'bg-green-500 text-white hover:bg-green-600'
-                            : service.category === 'Diagnostics'
-                            ? 'bg-blue-500 text-white hover:bg-blue-600'
-                            : service.category === 'Repair'
-                            ? 'bg-red-500 text-white hover:bg-red-600'
-                            : 'bg-gray-500 text-white hover:bg-gray-600'
+                          service.category === "Maintenance"
+                            ? "bg-green-500 text-white hover:bg-green-600"
+                            : service.category === "Diagnostics"
+                            ? "bg-blue-500 text-white hover:bg-blue-600"
+                            : service.category === "Repair"
+                            ? "bg-red-500 text-white hover:bg-red-600"
+                            : "bg-gray-500 text-white hover:bg-gray-600"
                         }
                       >
                         {service.category}
                       </Badge>
 
-                      {service.status === 'Inactive' && (
+                      {service.status === "Inactive" && (
                         <Badge className="bg-red-600 text-white">
                           Inactive
                         </Badge>
@@ -183,22 +190,22 @@ export default function WorkshopServicesPage() {
 
                   <div
                     className={
-                      service.category === 'Maintenance'
-                        ? 'bg-green-500/10 p-3 rounded-lg'
-                        : service.category === 'Diagnostics'
-                        ? 'bg-blue-500/10 p-3 rounded-lg'
-                        : service.category === 'Repair'
-                        ? 'bg-red-500/10 p-3 rounded-lg'
-                        : 'bg-gray-500/10 p-3 rounded-lg'
+                      service.category === "Maintenance"
+                        ? "bg-green-500/10 p-3 rounded-lg"
+                        : service.category === "Diagnostics"
+                        ? "bg-blue-500/10 p-3 rounded-lg"
+                        : service.category === "Repair"
+                        ? "bg-red-500/10 p-3 rounded-lg"
+                        : "bg-gray-500/10 p-3 rounded-lg"
                     }
                   >
-                    {service.category === 'Maintenance' && (
+                    {service.category === "Maintenance" && (
                       <Wrench className="h-5 w-5 text-green-600" />
                     )}
-                    {service.category === 'Diagnostics' && (
+                    {service.category === "Diagnostics" && (
                       <Zap className="h-5 w-5 text-blue-600" />
                     )}
-                    {service.category === 'Repair' && (
+                    {service.category === "Repair" && (
                       <Hammer className="h-5 w-5 text-red-600" />
                     )}
                   </div>
@@ -248,22 +255,64 @@ export default function WorkshopServicesPage() {
                       onUpdated={refreshCurrentWorkshopServices}
                     />
 
-                    {service.status === 'Active' ? (
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleDeactivate(service.id)}
-                      >
-                        Deactivate
-                      </Button>
+                    {service.status === "Active" ? (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive" size="sm">
+                            Deactivate
+                          </Button>
+                        </AlertDialogTrigger>
+
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              Deactivate Service?
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This action cannot be undone. The service will be
+                              marked as inactive.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDeactivate(service.id)}
+                            >
+                              Confirm
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     ) : (
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => handleActivate(service.id)}
-                      >
-                        Activate
-                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="default" size="sm">
+                            Activate
+                          </Button>
+                        </AlertDialogTrigger>
+
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              Activate Service?
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              The service will become active and available for
+                              workshops.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleActivate(service.id)}
+                            >
+                              Confirm
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     )}
                   </div>
                 </div>
