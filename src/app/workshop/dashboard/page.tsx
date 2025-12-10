@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { ProtectedRoute } from '@/components/protected-route';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { ProtectedRoute } from "@/components/protected-route";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Calendar,
   Car,
@@ -12,13 +12,21 @@ import {
   Users,
   Wrench,
   AlertCircle,
-} from 'lucide-react';
-import Link from 'next/link';
-import { useEffect, useState } from 'react';
-import { useAuth } from '@/lib/auth';
-import { useServiceRecords } from '@/contexts/ServiceRecordContext';
-import { useWorkshops } from '@/contexts/WorkshopContext';
+} from "lucide-react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useAuth } from "@/lib/auth";
+import { useServiceRecords } from "@/contexts/ServiceRecordContext";
+import { useWorkshops } from "@/contexts/WorkshopContext";
 
+/* ============================================================
+   ASP.NET BACKEND BASE URL
+============================================================ */
+const API_BASE = "https://localhost:7255";
+
+/* ============================================================
+   Dashboard Component
+============================================================ */
 export default function WorkshopDashboard() {
   const { user } = useAuth();
   const { currentWorkshop, loading: workshopLoading } = useWorkshops();
@@ -28,74 +36,134 @@ export default function WorkshopDashboard() {
     todayAppointments: 0,
     activeServices: 0,
     totalCustomers: 0,
-    monthlyRevenue: 0, // revenue stays demo
+    monthlyRevenue: 0,
   });
 
   const [todaySchedule, setTodaySchedule] = useState<any[]>([]);
 
+  /* ============================================================
+     Fetch Service by ID (ASP.NET)
+============================================================ */
+  async function fetchService(serviceId: string) {
+    try {
+      const res = await fetch(`${API_BASE}/api/Services/${serviceId}`);
+      if (!res.ok) {
+        console.warn("Service not found:", serviceId);
+        return null;
+      }
+      return res.json();
+    } catch (err) {
+      console.error("Service fetch error:", err);
+      return null;
+    }
+  }
+
+  /* ============================================================
+     Fetch Service Items (ASP.NET)
+============================================================ */
+  async function fetchServiceItems(recordId: string) {
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/ServiceItem/by-record/${recordId}`
+      );
+      if (!res.ok) {
+        console.warn("Service items not found:", recordId);
+        return [];
+      }
+      return res.json();
+    } catch (err) {
+      console.error("Service item fetch error:", err);
+      return [];
+    }
+  }
+
+  /* ============================================================
+     Revenue Calculation Logic
+============================================================ */
+  async function calculateMonthlyRevenue(records: any[]) {
+    const now = new Date();
+    const month = now.getMonth();
+    const year = now.getFullYear();
+
+    let sum = 0;
+
+    for (const record of records) {
+      if (record.status !== "Completed") continue;
+
+      const date = new Date(record.serviceDate);
+      if (date.getMonth() !== month || date.getFullYear() !== year) continue;
+
+      try {
+        const [service, items] = await Promise.all([
+          fetchService(record.serviceId),
+          fetchServiceItems(record.id),
+        ]);
+
+        const basePrice = Number(service?.price ?? 0);
+
+        const itemsTotal = Array.isArray(items)
+          ? items.reduce(
+              (acc, item) =>
+                acc + Number(item.unitPrice ?? 0) * Number(item.quantity ?? 0),
+              0
+            )
+          : 0;
+
+        sum += basePrice + itemsTotal;
+      } catch (err) {
+        console.error("Revenue calculation error for record:", record.id, err);
+      }
+    }
+
+    return sum;
+  }
+
+  /* ============================================================
+     Main Effect — Load Dashboard Metrics
+============================================================ */
   useEffect(() => {
-    if (!user || loading) return;
+    if (!user || loading || workshopLoading || !currentWorkshop) return;
 
-    const workshopId = currentWorkshop?.id; // your workshop account stores this
+    const workshopId = currentWorkshop.id;
+    const workshopRecords = recordsByWorkshop[workshopId] || [];
 
-    console.log('WorkShop ID: ', workshopId);
-    const workshopRecords = recordsByWorkshop[workshopId ?? ''] || [];
+    const todayStr = new Date().toISOString().slice(0, 10);
 
-    const todayString = new Date().toISOString().slice(0, 10); // yyyy-mm-dd
-
-    // === REAL DATA ===
-
-    // 1. Today Appointments (Scheduled for today)
     const todays = workshopRecords.filter(
-      (r) =>
-        r.status === 'Scheduled' && r.serviceDate.slice(0, 10) === todayString
+      (r: any) =>
+        r.status === "Scheduled" &&
+        typeof r.serviceDate === "string" &&
+        r.serviceDate.slice(0, 10) === todayStr
     );
 
-    // 2. Active services (Scheduled OR InProgress)
-    const activeServices = workshopRecords.filter(
-      (r) => r.status === 'Scheduled' || r.status === 'InProgress'
+    const active = workshopRecords.filter(
+      (r: any) => r.status === "Scheduled" || r.status === "Active"
     ).length;
 
-    // 3. Total customers (unique vehicles OR unique users)
-    const uniqueCustomers = new Set(workshopRecords.map((r) => r.userId));
+    const customers = new Set(workshopRecords.map((r: any) => r.userId));
 
-    // === REVENUE still using demo data ===
-    const invoices = JSON.parse(
-      localStorage.getItem('autocare_invoices') || '[]'
-    );
-    const now = new Date();
-    const thisMonth = now.getMonth();
-    const thisYear = now.getFullYear();
+    (async () => {
+      const revenue = await calculateMonthlyRevenue(workshopRecords);
 
-    const monthlyRevenue = invoices.reduce((sum: number, inv: any) => {
-      const invDate = new Date(inv.sentAt);
-      if (
-        invDate.getMonth() === thisMonth &&
-        invDate.getFullYear() === thisYear
-      ) {
-        const price = parseFloat(inv.totalPrice.replace('$', ''));
-        return sum + (isNaN(price) ? 0 : price);
-      }
-      return sum;
-    }, 0);
+      setStats({
+        todayAppointments: todays.length,
+        activeServices: active,
+        totalCustomers: customers.size,
+        monthlyRevenue: revenue,
+      });
 
-    // Update stats
-    setStats({
-      todayAppointments: todays.length,
-      activeServices,
-      totalCustomers: uniqueCustomers.size,
-      monthlyRevenue,
-    });
+      setTodaySchedule(todays.slice(0, 4));
+    })();
+  }, [user, loading, workshopLoading, currentWorkshop, recordsByWorkshop]);
 
-    // Today schedule list (limit 4)
-    setTodaySchedule(todays.slice(0, 4));
-  }, [user, recordsByWorkshop, loading]);
-
+  /* ============================================================
+     UI Rendering
+============================================================ */
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-muted/30">
-        {/* Navigation */}
-        <nav className="border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 sticky top-0 z-50">
+        {/* NAVBAR */}
+        <nav className="border-b bg-background/95 backdrop-blur sticky top-0 z-50">
           <div className="container mx-auto px-18">
             <div className="flex h-16 items-center justify-between">
               <div className="flex items-center gap-2">
@@ -136,6 +204,7 @@ export default function WorkshopDashboard() {
                 >
                   Operating Hours
                 </Link>
+
                 <Button variant="outline" size="sm" asChild>
                   <Link href="/">Logout</Link>
                 </Button>
@@ -144,7 +213,7 @@ export default function WorkshopDashboard() {
           </div>
         </nav>
 
-        {/* Main Content */}
+        {/* MAIN */}
         <main className="container mx-auto px-18 py-8">
           <div className="mb-8">
             <h1 className="text-3xl font-bold mb-2">Workshop Dashboard</h1>
@@ -153,9 +222,8 @@ export default function WorkshopDashboard() {
             </p>
           </div>
 
-          {/* Stats Grid */}
+          {/* STATS GRID */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {/* Today's Appointments */}
             <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -165,11 +233,6 @@ export default function WorkshopDashboard() {
                   <p className="text-3xl font-bold">
                     {stats.todayAppointments}
                   </p>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    {stats.todayAppointments === 0
-                      ? 'No bookings yet'
-                      : 'Active today'}
-                  </p>
                 </div>
                 <div className="bg-teal-500/10 p-3 rounded-lg">
                   <Calendar className="h-6 w-6 text-teal-600" />
@@ -177,7 +240,6 @@ export default function WorkshopDashboard() {
               </div>
             </Card>
 
-            {/* Active Services */}
             <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -185,9 +247,6 @@ export default function WorkshopDashboard() {
                     Active Services
                   </p>
                   <p className="text-3xl font-bold">{stats.activeServices}</p>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Scheduled / In Progress
-                  </p>
                 </div>
                 <div className="bg-amber-500/10 p-3 rounded-lg">
                   <Wrench className="h-6 w-6 text-amber-600" />
@@ -195,7 +254,6 @@ export default function WorkshopDashboard() {
               </div>
             </Card>
 
-            {/* Total Customers */}
             <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -203,9 +261,6 @@ export default function WorkshopDashboard() {
                     Total Customers
                   </p>
                   <p className="text-3xl font-bold">{stats.totalCustomers}</p>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Unique vehicle owners
-                  </p>
                 </div>
                 <div className="bg-blue-500/10 p-3 rounded-lg">
                   <Users className="h-6 w-6 text-blue-600" />
@@ -213,7 +268,6 @@ export default function WorkshopDashboard() {
               </div>
             </Card>
 
-            {/* Monthly Revenue */}
             <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -223,9 +277,6 @@ export default function WorkshopDashboard() {
                   <p className="text-3xl font-bold">
                     ${stats.monthlyRevenue.toFixed(2)}
                   </p>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    From invoices
-                  </p>
                 </div>
                 <div className="bg-green-500/10 p-3 rounded-lg">
                   <DollarSign className="h-6 w-6 text-green-600" />
@@ -234,9 +285,8 @@ export default function WorkshopDashboard() {
             </Card>
           </div>
 
-          {/* Today Schedule + Quick Actions */}
+          {/* TODAY'S Schedule */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Today's Schedule */}
             <Card className="lg:col-span-2 p-6">
               <h2 className="text-xl font-bold mb-4">Today's Schedule</h2>
 
@@ -247,9 +297,9 @@ export default function WorkshopDashboard() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {todaySchedule.map((appointment, index) => (
+                  {todaySchedule.map((appointment: any) => (
                     <Card
-                      key={index}
+                      key={appointment.id}
                       className="p-4 hover:shadow-md transition-shadow"
                     >
                       <div className="flex items-center justify-between">
@@ -271,7 +321,6 @@ export default function WorkshopDashboard() {
                             <p className="text-sm text-muted-foreground">
                               {appointment.vehicleName}
                             </p>
-
                             <p className="text-sm text-muted-foreground flex items-center gap-1">
                               <Car className="h-3 w-3" />
                               {appointment.workshopName}
@@ -281,9 +330,9 @@ export default function WorkshopDashboard() {
                           <p className="text-sm font-medium">
                             {new Date(
                               appointment.serviceDate
-                            ).toLocaleTimeString('en-US', {
-                              hour: '2-digit',
-                              minute: '2-digit',
+                            ).toLocaleTimeString("en-US", {
+                              hour: "2-digit",
+                              minute: "2-digit",
                             })}
                           </p>
                         </div>
@@ -298,12 +347,12 @@ export default function WorkshopDashboard() {
               )}
             </Card>
 
-            {/* Quick Actions */}
+            {/* QUICK ACTIONS */}
             <div className="space-y-6">
               <Card className="p-6">
                 <h2 className="text-xl font-bold mb-4">Quick Actions</h2>
                 <div className="space-y-2">
-                  <Button className="w-full" variant="default" asChild>
+                  <Button className="w-full" asChild>
                     <Link href="/workshop/appointments">
                       <Calendar className="h-4 w-4 mr-2" />
                       View Appointments

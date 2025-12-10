@@ -10,7 +10,7 @@ import React, {
 import { getAllServiceRecords } from "@/lib/serviceRecord";
 import { useAuth } from "@/lib/auth";
 
-interface ServiceRecord {
+export interface ServiceRecord {
   id: string;
   vehicleId: string;
   workshopId: string;
