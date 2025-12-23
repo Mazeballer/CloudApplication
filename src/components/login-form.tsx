@@ -1,39 +1,39 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Eye, EyeOff, AlertCircle } from 'lucide-react';
-import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { login } from '@/lib/auth';
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Eye, EyeOff, AlertCircle } from "lucide-react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { login } from "@/lib/auth";
 
 interface LoginFormProps {
-  type: 'Driver' | 'Workshop';
+  type: "Driver" | "Workshop";
 }
 
 export function LoginForm({ type }: LoginFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (searchParams.get('registered') === 'true') {
-      setSuccess('Account created successfully');
+    if (searchParams.get("registered") === "true") {
+      setSuccess("Account created successfully");
     }
   }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setIsLoading(true);
 
     const result = await login(email, password);
@@ -44,56 +44,66 @@ export function LoginForm({ type }: LoginFormProps) {
         email: string;
         fullName?: string;
         phone?: string;
-        role: 'Driver' | 'Workshop' | 'Admin';
+        emailNotificationsRequested?: boolean;
+        emailNotificationConfirmed?: boolean;
+        role: "Driver" | "Workshop" | "Admin";
       };
 
       // Page level rules
-      if (type === 'Driver' && user.role === 'Workshop') {
+      if (type === "Driver" && user.role === "Workshop") {
         setIsLoading(false);
-        setError('Please sign in using the workshop login page.');
+        setError("Please sign in using the workshop login page.");
         return;
       }
 
-      if (type === 'Workshop' && user.role === 'Driver') {
+      if (type === "Workshop" && user.role === "Driver") {
         setIsLoading(false);
-        setError('Please sign in using the car owner login page.');
+        setError("Please sign in using the car owner login page.");
         return;
       }
 
       // Admin is allowed on both pages
 
       // Save user in localStorage
-      localStorage.setItem('currentUser', JSON.stringify(user));
-      localStorage.setItem('UserId', user.id);
-      localStorage.setItem('isAuthenticated', 'true');
-      localStorage.setItem('userEmail', user.email);
-      localStorage.setItem('userType', user.role);
+      localStorage.setItem("currentUser", JSON.stringify(user));
+      localStorage.setItem("UserId", user.id);
+      localStorage.setItem("isAuthenticated", "true");
+      localStorage.setItem("userEmail", user.email);
+      localStorage.setItem("userType", user.role);
+      localStorage.setItem(
+        "userEmailNotificationsRequested",
+        user.emailNotificationsRequested ? "true" : "false"
+      );
+      localStorage.setItem(
+        "userEmailNotificationConfirmed",
+        user.emailNotificationConfirmed ? "true" : "false"
+      );
       setIsLoading(false);
 
       // Redirect based on actual role
-      if (user.role === 'Admin') {
-        router.push('/admin');
-      } else if (user.role === 'Workshop') {
-        router.push('/workshop/dashboard');
+      if (user.role === "Admin") {
+        router.push("/admin");
+      } else if (user.role === "Workshop") {
+        router.push("/workshop/dashboard");
       } else {
-        router.push('/dashboard');
+        router.push("/dashboard");
       }
     } else {
-      setError(result.error || 'Login failed');
+      setError(result.error || "Login failed");
       setIsLoading(false);
     }
   };
 
-  const signupLink = type === 'Workshop' ? '/workshop/signup' : '/signup';
+  const signupLink = type === "Workshop" ? "/workshop/signup" : "/signup";
 
   return (
     <Card className="p-8">
       <div className="mb-8">
         <h2 className="text-3xl font-bold mb-2">Sign in</h2>
         <p className="text-muted-foreground">
-          {type === 'Workshop'
-            ? 'Access your workshop dashboard'
-            : 'Access your vehicle dashboard'}
+          {type === "Workshop"
+            ? "Access your workshop dashboard"
+            : "Access your vehicle dashboard"}
         </p>
       </div>
 
@@ -135,7 +145,7 @@ export function LoginForm({ type }: LoginFormProps) {
           <div className="relative">
             <Input
               id="password"
-              type={showPassword ? 'text' : 'password'}
+              type={showPassword ? "text" : "password"}
               placeholder="Enter your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -165,12 +175,12 @@ export function LoginForm({ type }: LoginFormProps) {
         )}
 
         <Button type="submit" className="w-full" disabled={isLoading}>
-          {isLoading ? 'Signing in...' : 'Sign in'}
+          {isLoading ? "Signing in..." : "Sign in"}
         </Button>
       </form>
 
       <div className="mt-6 text-center text-sm text-muted-foreground">
-        {'Do not have an account? '}
+        {"Do not have an account? "}
         <Link
           href={signupLink}
           className="text-primary hover:underline font-medium"
@@ -180,9 +190,9 @@ export function LoginForm({ type }: LoginFormProps) {
       </div>
 
       <div className="mt-4 text-center text-sm text-muted-foreground">
-        {type === 'Driver' ? (
+        {type === "Driver" ? (
           <>
-            Are you a workshop?{' '}
+            Are you a workshop?{" "}
             <Link
               href="/workshop/login"
               className="text-primary hover:underline font-medium"
@@ -192,7 +202,7 @@ export function LoginForm({ type }: LoginFormProps) {
           </>
         ) : (
           <>
-            Are you a car owner?{' '}
+            Are you a car owner?{" "}
             <Link
               href="/login"
               className="text-primary hover:underline font-medium"

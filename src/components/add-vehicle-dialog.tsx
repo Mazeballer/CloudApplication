@@ -79,17 +79,56 @@ export function AddVehicleDialog({ onAddVehicle }: AddVehicleDialogProps) {
     let image = "";
 
     // 1️⃣ Upload image if exists
-    if (imageFile) {
-      const fd = new FormData();
-      fd.append("file", imageFile);
+    // Using Supabase Storage
+    // if (imageFile) {
+    //   const fd = new FormData();
+    //   fd.append("file", imageFile);
 
-      const uploadRes = await fetch("/api/upload", {
+    //   const uploadRes = await fetch("/api/upload", {
+    //     method: "POST",
+    //     body: fd,
+    //   });
+
+    //   const uploadData = await uploadRes.json();
+    //   image = uploadData.key; // ★ store object key instead
+    // }
+
+    // Using AWS S3 Presigned URL
+    if (imageFile) {
+      const presignRes = await fetch("/api/upload-aws", {
         method: "POST",
-        body: fd,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fileName: imageFile.name,
+          fileType: imageFile.type,
+          fileSize: imageFile.size,
+        }),
       });
 
-      const uploadData = await uploadRes.json();
-      image = uploadData.url; // ★ URL from Supabase
+      if (!presignRes.ok) {
+        console.error("Failed to get presigned URL");
+        return;
+      }
+
+      const { uploadUrl, key } = await presignRes.json();
+
+      // 2️⃣ Upload file directly to S3
+      const uploadToS3 = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: {
+          "Content-Type": imageFile.type,
+        },
+        body: imageFile,
+      });
+
+      if (!uploadToS3.ok) {
+        console.error("Failed to upload to S3");
+        return;
+      }
+
+      image = key; // store S3 object key (vehicles/xxx.jpg)
     }
 
     // 2️⃣ Create vehicle object
@@ -99,7 +138,7 @@ export function AddVehicleDialog({ onAddVehicle }: AddVehicleDialogProps) {
       year: parseInt(year),
       plate,
       mileage: parseInt(mileage),
-      image, // ★ send the URL, not the file
+      image, // ★ send storage key (e.g. vehicles/xxx.jpg)
       email: userEmail,
       color,
       purchaseDate,

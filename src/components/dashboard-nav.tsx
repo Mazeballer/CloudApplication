@@ -1,17 +1,121 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Car, LogOut, Menu, Bell, User, X, ChevronRight } from "lucide-react";
+import {
+  Car,
+  LogOut,
+  Menu,
+  Bell,
+  User,
+  X,
+  ChevronRight,
+  BellRing,
+  BellDot,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { logout, getUserEmail } from "@/lib/auth";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+
+function getBellState() {
+  const requested =
+    localStorage.getItem("userEmailNotificationsRequested") === "true";
+  const confirmed =
+    localStorage.getItem("userEmailNotificationConfirmed") === "true";
+
+  if (!requested) return "off";
+  if (requested && !confirmed) return "pending";
+  return "on";
+}
 
 export function DashboardNav() {
   const router = useRouter();
   const userEmail = getUserEmail();
   const [isOpen, setIsOpen] = useState(false);
+
+  const [bellState, setBellState] = useState<"off" | "pending" | "on">("off");
+  const [loadingNotif, setLoadingNotif] = useState(false);
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+  useEffect(() => {
+    async function syncNotificationStatus() {
+      try {
+        const res = await fetch(`${API_URL}/api/notifications/status`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: userEmail,
+          }),
+        });
+
+        if (!res.ok) return;
+
+        const data = await res.json();
+
+        localStorage.setItem(
+          "userEmailNotificationsRequested",
+          data.requested ? "true" : "false"
+        );
+        localStorage.setItem(
+          "userEmailNotificationConfirmed",
+          data.confirmed ? "true" : "false"
+        );
+
+        setBellState(getBellState());
+      } catch (err) {
+        console.error("Failed to sync notification status", err);
+      }
+    }
+
+    syncNotificationStatus();
+  }, []);
+
+  const toggleNotification = async () => {
+    if (loadingNotif) return;
+    setLoadingNotif(true);
+
+    try {
+      if (bellState === "off") {
+        // Turn ON
+        await fetch(`${API_URL}/api/notifications/subscribe`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: userEmail,
+          }),
+        });
+
+        localStorage.setItem("userEmailNotificationsRequested", "true");
+        localStorage.setItem("userEmailNotificationConfirmed", "false");
+      } else {
+        // Turn OFF (also handles pending)
+        await fetch(`${API_URL}/api/notifications/unsubscribe`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: userEmail,
+          }),
+        });
+
+        localStorage.setItem("userEmailNotificationsRequested", "false");
+        localStorage.setItem("userEmailNotificationConfirmed", "false");
+      }
+
+      setBellState(getBellState());
+    } catch (err) {
+      console.error("Notification toggle failed", err);
+      alert("Failed to update notification preference");
+    } finally {
+      setLoadingNotif(false);
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -52,9 +156,19 @@ export function DashboardNav() {
           <Button
             variant="ghost"
             size="icon"
-            className="text-muted-foreground hover:text-foreground"
+            onClick={toggleNotification}
+            disabled={loadingNotif}
+            className={
+              bellState === "on"
+                ? "text-primary"
+                : bellState === "pending"
+                ? "text-yellow-500"
+                : "text-muted-foreground"
+            }
           >
-            <Bell className="h-5 w-5" />
+            {bellState === "on" && <BellRing className="h-5 w-5" />}
+            {bellState === "pending" && <BellDot className="h-5 w-5" />}
+            {bellState === "off" && <Bell className="h-5 w-5" />}
           </Button>
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted">
             <User className="h-4 w-4 text-muted-foreground" />

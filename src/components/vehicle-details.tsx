@@ -77,10 +77,39 @@ const PARTS_CONFIG: PartConfig[] = [
   },
 ];
 
+export async function resolveVehicleImage(image: string) {
+  if (!image) return "/placeholder.png";
+
+  // 1️⃣ Already a full URL (old Supabase or any external)
+  if (image.startsWith("http")) {
+    return image;
+  }
+
+  // 2️⃣ AWS S3 objects (your convention: vehicles/)
+  if (image.startsWith("vehicles/")) {
+    try {
+      const res = await fetch(
+        `/api/image-url?key=${encodeURIComponent(image)}`
+      );
+
+      if (!res.ok) throw new Error("Failed to get AWS image URL");
+
+      const { url } = await res.json();
+      return url;
+    } catch (err) {
+      console.error("AWS image resolve error:", err);
+      return "/placeholder.png";
+    }
+  }
+
+  return "/placeholder.png";
+}
+
 export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
   const { vehicles } = useVehicles();
   const [records, setRecords] = useState<RawRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [imageUrl, setImageUrl] = useState("/placeholder.png");
 
   const vehicle = vehicles.find((v) => v.id === vehicleId);
 
@@ -236,6 +265,17 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
   // Alerts based on critical parts only
   const criticalParts = partsHealth.filter((p) => p.status === "critical");
 
+  useEffect(() => {
+    let mounted = true;
+
+    resolveVehicleImage(vehicle.image).then((url) => {
+      if (mounted) setImageUrl(url);
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, [vehicle.image]);
   // ------------------------------------------------------------------
 
   return (
@@ -252,7 +292,7 @@ export function VehicleDetails({ vehicleId }: { vehicleId: string }) {
       <Card className="p-6">
         <div className="flex flex-col lg:flex-row gap-6">
           <img
-            src={vehicle.image || "/placeholder.svg"}
+            src={imageUrl}
             className="w-full lg:w-80 h-56 object-cover rounded-lg"
           />
 
