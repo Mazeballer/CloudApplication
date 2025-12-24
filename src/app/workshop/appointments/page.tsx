@@ -206,22 +206,22 @@ export default function WorkshopAppointmentsPage() {
       return;
     }
 
-    // 2. Save Service Items
-    const resItems = await fetch(`${API_URL}/api/ServiceItem/add`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        serviceRecordId: appointment.id,
-        items,
-      }),
-    });
+    if (items.length > 0) {
+      const resItems = await fetch(`${API_URL}/api/ServiceItem/add`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceRecordId: appointment.id,
+          items,
+        }),
+      });
 
-    if (!resItems.ok) {
-      notify.error("Failed to save service items");
-      return;
+      if (!resItems.ok) {
+        notify.error("Failed to save service items");
+        return;
+      }
     }
 
-    // 3. Generate Invoice
     const payload = {
       serviceRecordId: appointment.id,
       userId: appointment.customerId,
