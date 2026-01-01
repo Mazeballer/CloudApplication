@@ -50,7 +50,6 @@ export default function WorkshopAppointmentsPage() {
   // NEW STATES
   // ------------------------------
   const [workshopServices, setWorkshopServices] = useState<any[]>([]);
-  const [selectedVehicle, setSelectedVehicle] = useState<any | null>(null);
 
   const deleteInvoice = async (invoiceId: string, appointmentId: string) => {
     const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -91,21 +90,6 @@ export default function WorkshopAppointmentsPage() {
 
     loadServices();
   }, [user]);
-
-  // ------------------------------
-  // FETCH VEHICLE DETAILS OF APPOINTMENT
-  // ------------------------------
-  const loadVehicleForAppointment = async (appointment: any) => {
-    const res = await fetch(`${API_URL}/api/Vehicles/${appointment.vehicleId}`);
-
-    if (!res.ok) {
-      setSelectedVehicle(null);
-      return;
-    }
-
-    const vehicle = await res.json(); // ← single vehicle object
-    setSelectedVehicle(vehicle);
-  };
 
   // Fetch real service records
   useEffect(() => {
@@ -171,20 +155,17 @@ export default function WorkshopAppointmentsPage() {
   //  NEW handleInvoiceSubmit
   // -----------------------------------
   const handleInvoiceSubmit = async ({
+    appointmentId,
+    vehicleId,
     newMileage,
     items,
   }: {
+    appointmentId: string;
+    vehicleId: string;
     newMileage: number;
     items: ServiceItemInput[];
   }) => {
-    if (!selectedVehicle) {
-      notify.error("Vehicle not loaded");
-      return;
-    }
-
-    const appointment = appointments.find(
-      (a) => a.vehicleId === selectedVehicle.id
-    );
+    const appointment = appointments.find((a) => a.id === appointmentId);
 
     if (!appointment) {
       notify.error("Appointment not found");
@@ -193,7 +174,7 @@ export default function WorkshopAppointmentsPage() {
 
     // 1. Update mileage
     const resMileage = await fetch(
-      `${API_URL}/api/Vehicles/${selectedVehicle.id}/mileage`,
+      `${API_URL}/api/Vehicles/${vehicleId}/mileage`,
       {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -353,7 +334,6 @@ export default function WorkshopAppointmentsPage() {
                   <Card
                     key={appointment.id}
                     className="p-6 hover:shadow-lg transition-shadow"
-                    onMouseEnter={() => loadVehicleForAppointment(appointment)}
                   >
                     <div className="flex items-center justify-between gap-6">
                       {/* =====================
@@ -454,11 +434,15 @@ export default function WorkshopAppointmentsPage() {
                           <>
                             {!appointment.invoiceId ? (
                               <InvoiceItemsDialog
-                                onSubmit={handleInvoiceSubmit}
-                                workshopServices={workshopServices}
-                                currentMileage={
-                                  selectedVehicle?.currentMileage ?? 0
+                                onSubmit={(payload) =>
+                                  handleInvoiceSubmit({
+                                    appointmentId: appointment.id,
+                                    vehicleId: appointment.vehicleId,
+                                    ...payload,
+                                  })
                                 }
+                                workshopServices={workshopServices}
+                                currentMileage={0}
                               >
                                 <Button size="sm">Generate Invoice</Button>
                               </InvoiceItemsDialog>
