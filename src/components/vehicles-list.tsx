@@ -9,22 +9,23 @@ import Link from "next/link";
 import { AddVehicleDialog } from "./add-vehicle-dialog";
 import { useVehicles } from "@/contexts/VehiclesContext";
 
-export async function resolveVehicleImage(image: string) {
+export async function resolveVehicleImage(image?: string): Promise<string> {
+  console.log("Image: " , image);
   if (!image) return "/placeholder.png";
 
-  // 1️⃣ Already a full URL (old Supabase or any external)
+  // 1️⃣ Absolute URLs (old Supabase / legacy)
   if (image.startsWith("http")) {
     return image;
   }
 
-  // 2️⃣ AWS S3 objects (your convention: vehicles/)
+  // 2️⃣ AWS S3 private objects
   if (image.startsWith("vehicles/")) {
     try {
       const res = await fetch(
         `/api/image-url?key=${encodeURIComponent(image)}`
       );
 
-      if (!res.ok) throw new Error("Failed to get AWS image URL");
+      if (!res.ok) throw new Error("Failed to fetch S3 image URL");
 
       const { url } = await res.json();
       return url;
@@ -34,6 +35,12 @@ export async function resolveVehicleImage(image: string) {
     }
   }
 
+  // 3️⃣ Supabase storage key (explicit)
+  if (image.startsWith("product-images/")) {
+    return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${image}`;
+  }
+
+  // Fallback
   return "/placeholder.png";
 }
 
@@ -55,11 +62,17 @@ function VehicleCard({ vehicle }: { vehicle: any }) {
   return (
     <Card className="p-4 hover:shadow-md transition-shadow">
       <div className="flex flex-col sm:flex-row gap-4">
-        <img
-          src={imageUrl}
-          alt={`${vehicle.make} ${vehicle.model}`}
-          className="w-full sm:w-32 h-24 object-cover rounded-lg"
-        />
+        {imageUrl ? (
+          <img
+            src={imageUrl}
+            alt={`${vehicle.make} ${vehicle.model}`}
+            className="w-full sm:w-32 h-24 object-cover rounded-lg"
+          />
+        ) : (
+          <div className="w-full sm:w-32 h-24 bg-muted rounded-lg flex items-center justify-center text-sm text-muted-foreground">
+            Loading…
+          </div>
+        )}
 
         {/* Vehicle Info */}
         <div className="flex-1">
